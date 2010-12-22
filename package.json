@@ -6,7 +6,7 @@
     "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
     "contributors": [
         "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
-        "Mark Miller <erights@google.com>""
+        "Mark Miller <erights@google.com>"
     ],
     "bugs": {
         "mail": "kris@cixar.com",
@@ -24,10 +24,11 @@
         "url": "http://github.com/kriskowal/q-comm.git"
     },
     "engines": {
-        "node": ">=0.2.0",
-        "uuid": ">=0.0.2"
+        "node": ">=0.2.0"
     },
     "dependencies": {
-        "q": ">=0.2.0"
+        "q": ">=0.2.0",
+        "uuid": ">=0.0.2",
+        "socket.io": "0.6.0"
     }
 }

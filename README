@@ -24,3 +24,22 @@ second later.  The resolution of the argument makes a round
 trip from the client to the server and back, and eventually
 gets written the browser's log.
 
+
+INSTALLING
+----------
+
+This project depends on the SocketIO project, NodeJS,
+and some other stuff. You can install all of these
+with NPM by initializing this project:
+
+    npm install .
+
+To run the example, you'll also need to activate it, since
+the dependencies of the example are well in advance of the
+dependencies of the library itself.
+
+    cd example
+    npm install .
+
+You can grab npm from http://npmjs.org/
+
