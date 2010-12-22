@@ -7,15 +7,21 @@
 
     var local = Q.defer();
     setTimeout(function () {
-        local.resolve("Hello, World!");
+        local.resolve(Q.def({
+            "toString": function () {
+                return "Hello, World!"
+            }
+        }));
     }, 1000);
 
     var result = Q.post(
         remote,
         'method',
-        [local.promise]
+        local.promise
     );
     console.log('called remote method, received promise, waiting...');
+
+    result = Q.post(result, 'toString');
 
     Q.when(result, function (resolution) {
         console.log('full round trip...');
@@ -25,8 +31,7 @@
     });
 
 })(
-    typeof exports !== "undefined" ?
-    require : (function (global) {
+    (function (global) {
         return function (id) {
             return global["/" + id];
         };

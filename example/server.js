@@ -27,12 +27,12 @@ var webSocket = SOCKET.listen(server.nodeServer);
 Q.when(server.listen(port), function () {
     console.log("Listining on " + port);
 
-    COMM.Server(webSocket, {
+    COMM.Server(webSocket, Q.def({
         "method": function (arg) {
             console.log("local method called");
             return arg;
         }
-    });
+    }));
 
     var siginted;
     PROCESS.on("SIGINT", function () {

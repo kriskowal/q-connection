@@ -18,6 +18,8 @@
 //   call (which returns the promise itself by default)
 // * near(ref) has been changed to Promise.valueOf() in
 //   keeping with JavaScript's existing Object.valueOf().
+// * post(promise, name, args) has been altered to a variadic
+//   post(promise, name ...args)
 // * variadic arguments are used internally where
 //   applicable. However, I have not altered the Q.post()
 //   API to expand variadic arguments since Tyler Close
@@ -276,11 +278,38 @@ function ref(object) {
         "delete": function (name) {
             delete object[name];
         },
-        "post": function (name, args) {
+        "post": function (name /*...args*/) {
+            var args = Array.prototype.slice.call(arguments, 1);
             return object[name].apply(object, args);
         }
     }, undefined, function valueOf() {
         return object;
+    });
+}
+
+/**
+ * Annotates an object such that it will never be
+ * transferred away from this process over any promise
+ * communication channel.
+ * @param object
+ * @returns promise a wrapping of that object that
+ * additionally responds to the 'isDef' message
+ * without a rejection.
+ */
+exports.def = function (object) {
+    return Promise({
+        "isDef": function () {}
+    }, function fallback(op, resolve) {
+        var args = Array.prototype.slice.call(arguments, 2);
+        var result = send.apply(undefined, [object, op].concat(args));
+        // TODO? return resolve ? resolve(result) : result;
+        return result;
+    }, function valueOf() {
+        return {
+            'toString': function () {
+                return '[object Promise def]'
+            }
+        };
     });
 }
 
@@ -353,17 +382,30 @@ exports.asap = function (value, resolved, rejected) {
  * "Method" constructs methods like "get(promise, name)" and "put(promise)".
  */
 exports.Method = Method;
-function Method (methodName) {
+function Method (op) {
     return function (object) {
-        var deferred = defer();
         var args = Array.prototype.slice.call(arguments, 1);
-        forward.apply(undefined, [
-            ref(object),
-            methodName,
-            deferred.resolve
-        ].concat(args));
-        return deferred.promise;
+        return send.apply(undefined, [object, op].concat(args));
     };
+}
+
+/**
+ * sends a message to a value in a future turn
+ * @param object* the recipient
+ * @param op the name of the message operation, e.g., "when",
+ * @param ...args further arguments to be forwarded to the operation
+ * @returns result {Promise} a promise for the result of the operation
+ */
+exports.send = send;
+function send(object, op) {
+    var deferred = defer();
+    var args = Array.prototype.slice.call(arguments, 2);
+    forward.apply(undefined, [
+        ref(object),
+        op,
+        deferred.resolve
+    ].concat(args));
+    return deferred.promise;
 }
 
 /**
@@ -395,7 +437,7 @@ exports.del = Method("del");
  * Invokes a method in a future turn.
  * @param object    promise or immediate reference for target object
  * @param name      name of method to invoke
- * @param argv      array of invocation arguments
+ * @param ...args   array of invocation arguments
  * @return promise for the return value
  */
 exports.post = Method("post");
