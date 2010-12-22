@@ -1,0 +1,26 @@
+
+This is presently a draft library and an example of using
+promises to communicate with remote objects using
+NodeJS as a server and socket.io as the communication
+channel.  I have abstracted the connection mechanism to make
+it easier to adapt any message passing system for use as the
+communication channel, with the intention of developing
+channels across workers and between server processes.
+
+In the example, there is a Node server and a browser client.
+Run the server, visit http://localhost:8080 in your web
+browser, and open the development console.
+
+The server hosts a root remote object which never gets
+resolved; it merely contains a "method" method, which
+accepts an argument and returns that argument.  The client,
+in turn, receives a promise for the server's object, which
+never gets resolved locally, but can send messages to that
+object using the Q API. Particularly in this example, the
+client asynchronously calls the remote object's "method",
+passing a local promise as its argument.  The method call
+gets sent immediately, and the argument gets resolved a
+second later.  The resolution of the argument makes a round
+trip from the client to the server and back, and eventually
+gets written the browser's log.
+
