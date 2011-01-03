@@ -19,6 +19,9 @@
         }
     ],
     "main": "lib/q-comm.js",
+    "modules": {
+        "webworker": "./lib/q-comm/webworker"
+    },
     "repository": {
         "type": "git",
         "url": "http://github.com/kriskowal/q-comm.git"

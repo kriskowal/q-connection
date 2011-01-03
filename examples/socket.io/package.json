@@ -1,0 +1,11 @@
+{
+    "name": "q-comm-example",
+    "version": "0.0.0",
+    "dependencies": {
+        "q-comm": ">=0.0.0",
+        "q-util": ">=0.0.2",
+        "q-http": ">=0.0.4",
+        "jaque": ">=0.1.8",
+        "n-util": ">=0.0.1"
+    }
+}
