@@ -1,31 +1,115 @@
 
-This is presently a draft library and an example of using
-promises to communicate with remote objects using
-NodeJS as a server and socket.io as the communication
-channel.  I have abstracted the connection mechanism to make
-it easier to adapt any message passing system for use as the
-communication channel, with the intention of developing
-channels across workers and between server processes.
+Asynchronous Object Communication
+---------------------------------
 
-In the example, there is a Node server and a browser client.
-Run the server, visit http://localhost:8080 in your web
-browser, and open the development console.
+This tiny library facilitates communication between objects
+in different processes using asynchronous processes.
 
-The server hosts a root remote object which never gets
-resolved; it merely contains a "method" method, which
-accepts an argument and returns that argument.  The client,
-in turn, receives a promise for the server's object, which
-never gets resolved locally, but can send messages to that
-object using the Q API. Particularly in this example, the
-client asynchronously calls the remote object's "method",
-passing a local promise as its argument.  The method call
-gets sent immediately, and the argument gets resolved a
-second later.  The resolution of the argument makes a round
-trip from the client to the server and back, and eventually
-gets written the browser's log.
+The `q-comm` module provides a way to connect objects using
+a symmetric message-passing connection.  It accepts a
+generic `Connection` object, a local object, and returns a
+far/remote promise to the object on the other side of the
+connection.
+
+    var COMM = require("q-comm");
+    var remote = COMM.Peer(connection, local);
+
+Your local value can be any JavaScript value, but it is most
+useful to create a `def` object.  The `def` method from the
+`q` module wraps any value, annotating that the underlying
+value is not serializable.  This means it will never be sent
+as JSON to the other side of the connection.  This allows
+your local object to have methods that are called on the
+server, but also means that it can't be resolved with a
+`when` call on the other side.
+
+    var Q = require("q");
+    var counter = 0;
+    var local = Q.def({
+        "next": function () {
+            return counter++;
+        }
+    });
+
+The connection is symmetric. Although you do not need to
+supply a local object, and do not need to use the returned
+remote object, the local object on each side asynchronously
+forwards all of its messages to the remote object on the
+other side of the connection, and vice versa.
+
+    local                remote  
+    ------------------   ------------------------------
+    local.foo            Q.get(remote, "foo")
+    local.foo = value    Q.put(remote, "foo", value)
+    delete local.foo     Q.del(remote, "foo")
+    local.foo(...args)   Q.post(remote, "foo", ...args)
+
+All of the remote methods in the Q module return promises
+for the eventual value of the corresponding local
+expression.  This includes `del` which eventually resolves
+to `undefined` indicating that the operation completed on
+the remote side.
+
+If the result of the operation on the opposite end is
+serializable, you can observe it locally by using the `when`
+method of the `q` module.
+
+    var Q = require("q");
+    var n = Q.post(remote, "next")
+    Q.when(n, function (n) {
+        console.log("Got " + n + " from the remote counter.");
+    });
+
+However, all arguments and return values in this system can
+in turn be promises, including promises returned by `def`.
+
+You can use the `q` methods on any value, including
+promises, including promises returned by `def`.
+
+If you pass a `def` promise as an argument or return value,
+it gets matched on the opposite end of the connection with
+an "un-when-able" promise that forwards all of its messages
+back to you.
+
+Check out the `examples` directory for ideas.
 
 
-INSTALLING
+Connections
+-----------
+
+A connection is an object that implements `get`, `put`,
+`close`, and has a `closed` promise.  `get` returns a
+promise for the next message received, and `put` sends a
+message asynchronously.  This package includes several
+connection implementations including:
+
+  - a socket.io server adapter
+  - a socket.io client adapter
+  - a node webworker (which is symmetric, so it can be used
+    both in the master and the worker)
+  - a node-to-node message passing connection, using
+    node's `net` module (which is also symmetric)
+  - your adapter here
+
+For illustration, this is how you create a Node object
+service using a node-to-node TCP message connection:
+
+    var Q = require("q");
+    var COMM = require("q-comm");
+    var MESSAGES = require("q-comm/messages");
+    MESSAGES.listen(2323, function (connection) {
+        var service = Q.def({
+            "echo": function (x) {
+                return x;
+            }
+        });
+        COMM.Peer(connection, service);
+    });
+
+Check out the `examples` for further details.
+
+
+Installing
 ----------
 
 This project depends on the SocketIO project, NodeJS,
