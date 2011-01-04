@@ -20,7 +20,8 @@
     ],
     "main": "lib/q-comm.js",
     "modules": {
-        "webworker": "./lib/q-comm/webworker"
+        "webworker": "./lib/q-comm/webworker",
+        "messages": "./lib/q-comm/messages"
     },
     "repository": {
         "type": "git",
