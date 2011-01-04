@@ -3,7 +3,7 @@ Asynchronous Object Communication
 ---------------------------------
 
 This tiny library facilitates communication between objects
-in different processes using asynchronous processes.
+in different processes using asynchronous promises.
 
 The `q-comm` module provides a way to connect objects using
 a symmetric message-passing connection.  It accepts a
