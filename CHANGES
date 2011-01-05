@@ -1,7 +1,11 @@
 
+0.0.3
+ - Upgraded dependency on `q` to v0.2.2 to fix bug in Queue
+   implementation.
+
 0.0.2
- - added missing dependency on n-util
+ - Added missing dependency on `n-util`.
 
 0.0.1
- - removed false dependency on q-io
+ - Removed false dependency on `q-io`.
 
