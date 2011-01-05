@@ -19,9 +19,8 @@ useful to create a `def` object.  The `def` method from the
 `q` module wraps any value, annotating that the underlying
 value is not serializable.  This means it will never be sent
 as JSON to the other side of the connection.  This allows
-your local object to have methods that are called on the
-server, but also means that it can't be resolved with a
-`when` call on the other side.
+your local object to have closures, but also means that it
+can't be resolved with a `when` call on the other side.
 
     var Q = require("q");
     var counter = 0;
@@ -44,9 +43,9 @@ other side of the connection, and vice versa.
     delete local.foo     Q.del(remote, "foo")
     local.foo(...args)   Q.post(remote, "foo", ...args)
 
-All of the remote methods in the Q module return promises
+All of the remote methods in the `q` module return promises
 for the eventual value of the corresponding local
-expression.  This includes `del` which eventually resolves
+expression.  This includes `del`, which eventually resolves
 to `undefined` indicating that the operation completed on
 the remote side.
 
