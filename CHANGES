@@ -1,4 +1,13 @@
 
+0.1.0 - BACKWARD INCOMPATIBLE
+ - Removed the socket.io-server "Server" constructor and
+   renamed "SocketServer" to "Server".  Creating an
+   object-to-object link and creating a connection are
+   now explicitly separated in all usage.
+ - Added the local object argument to the socket.io-client
+   connection constructor.
+ - Added a "swarm" example.
+
 0.0.3
  - Upgraded dependency on `q` to v0.2.2 to fix bug in Queue
    implementation.

@@ -1,7 +1,7 @@
 {
     "name": "q-comm",
     "description": "An inter-worker asynchronous promise communication system.",
-    "version": "0.0.3",
+    "version": "0.1.0",
     "homepage": "http://github.com/kriskowal/q-comm/",
     "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
     "contributors": [
@@ -21,7 +21,8 @@
     "main": "lib/q-comm.js",
     "modules": {
         "webworker": "./lib/q-comm/webworker",
-        "messages": "./lib/q-comm/messages"
+        "messages": "./lib/q-comm/messages",
+        "socket.io-server": "./lib/q-comm/socket.io-server"
     },
     "repository": {
         "type": "git",

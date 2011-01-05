@@ -11,6 +11,7 @@ var SOCKET_IO = require("socket.io");
 var HTTP = require("q-http");
 var JAQUE = require("jaque");
 var UTIL = require("n-util");
+var UUID = require("uuid");
 
 var port = 8080;
 
@@ -32,24 +33,34 @@ var server = HTTP.Server(JAQUE.Decorators([
 // start a socket.io server on the same node server
 var socketIo = SOCKET_IO.listen(server.nodeServer);
 
+var swarm = Q.def({});
+
 // start the JSGI server
 Q.when(server.listen(port), function () {
     console.log("Listining on " + port);
 
-    // XXX XXX
-    // this attaches a q-comm root object
-    // to the socket.io server
-
-    var local = Q.def({
-        "echo": function (arg) {
-            console.log("local method called");
-            return arg;
-        }
-    });
+    // XXX
+    // we receive a connection object for each
+    // browser that succesfully connects back to us.
     CONN.Server(socketIo, function (connection) {
-        var remote = COMM.Peer(connection, local);
+        // We then forge an object-to-object connection
+        // between our swarm object and the client
+        // object.
+        var client = COMM.Peer(connection, swarm);
+        var id = UUID.generate();
+        // we add the client connection to our
+        // swarm table
+        Q.put(swarm, id, client);
+        // and remove it when the connection closes
+        Q.when(connection.closed, function () {
+            Q.del(swarm, id);
+        });
+        // we're using the Q API to manipulate the
+        // contents of the def-wrapped swarm object,
+        // which isn't strictly necessary since we're
+        // local, but it works fine.
     });
-    // XXX XXX
+    // XXX
 
 }, Q.error);
 

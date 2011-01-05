@@ -4,7 +4,8 @@
 // to see the q-comm code...
 
 var PROCESS = process;
-var COMM = require("../../lib/q-comm/socket.io-server");
+var COMM = require("q-comm");
+var CONN = require("q-comm/socket.io-server");
 var Q = require("q-util");
 var SOCKET_IO = require("socket.io");
 var HTTP = require("q-http");
@@ -38,12 +39,15 @@ Q.when(server.listen(port), function () {
     // XXX XXX
     // this attaches a q-comm root object
     // to the socket.io server
-    COMM.Server(socketIo, Q.def({
+    var local = Q.def({
         "echo": function (arg) {
             console.log("local method called");
             return arg;
         }
-    }));
+    });
+    CONN.Server(socketIo, function (connection) {
+        COMM.Peer(connection, local);
+    });
     // XXX XXX
 
 }, Q.error);
