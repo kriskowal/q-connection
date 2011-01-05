@@ -1,4 +1,7 @@
 
+0.0.2
+ - added missing dependency on n-util
+
 0.0.1
  - removed false dependency on q-io
 
