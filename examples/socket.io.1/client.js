@@ -11,15 +11,15 @@
     // the results.
     var remote = COMM.Client();
 
-    // then we call the "identity" method of the
+    // then we call the "echo" method of the
     // remote object, passing "Hello, World!" as
-    // an argument. The identity method returns
+    // an argument. The echo method returns
     // the argument, so we'll receive a promise
     // for "Hello, World!" once it has made a round
     // trip from here to the server and back.
     var result = Q.post(
         remote,
-        'identity',
+        'echo',
         'Hello, World!'
     );
 

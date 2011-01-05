@@ -39,7 +39,7 @@ Q.when(server.listen(port), function () {
     // this attaches a q-comm root object
     // to the socket.io server
     COMM.Server(socketIo, Q.def({
-        "identity": function (arg) {
+        "echo": function (arg) {
             console.log("local method called");
             return arg;
         }

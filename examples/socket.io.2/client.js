@@ -36,12 +36,12 @@
         }));
     }, 1000);
 
-    // then, we call the "identity" method of the remote
+    // then, we call the "echo" method of the remote
     // object, passing the promise for the "Hello, World!"
     // stringable object as an argument.
     var result = Q.post(
         remote,
-        'identity',
+        'echo',
         local.promise
     );
     console.log('called remote method, received promise, waiting...');

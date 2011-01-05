@@ -3,7 +3,7 @@ var Q = require("q");
 var Peer = require("q-comm/webworker").Peer;
 
 var local = Q.def({
-    "identity": function (x) {
+    "echo": function (x) {
         return x;
     }
 });
