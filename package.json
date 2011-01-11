@@ -1,7 +1,7 @@
 {
     "name": "q-comm",
     "description": "An inter-worker asynchronous promise communication system.",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "homepage": "http://github.com/kriskowal/q-comm/",
     "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
     "contributors": [
@@ -32,7 +32,7 @@
         "node": ">=0.2.0"
     },
     "dependencies": {
-        "q": ">=0.2.2",
+        "q": ">=0.2.5",
         "uuid": ">=0.0.2",
         "socket.io": "0.6.0",
         "n-util": "0.0.1"

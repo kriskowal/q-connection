@@ -1,4 +1,8 @@
 
+0.1.1
+ - Alterations to far references
+ - Upgraded Q for duck-promises
+
 0.1.0 - BACKWARD INCOMPATIBLE
  - Removed the socket.io-server "Server" constructor and
    renamed "SocketServer" to "Server".  Creating an

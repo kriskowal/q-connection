@@ -1,4 +1,4 @@
-
+// vim:ts=4:sts=4:sw=4:
 // Tyler Close
 // Ported and revised by Kris Kowal
 //
@@ -50,6 +50,8 @@
 (function (exports, undefined) {
 "use strict";
 
+var DUCK = "promiseSend";
+
 var enqueue;
 try {
     // Narwhal, Node (with a package, wraps process.nextTick)
@@ -59,20 +61,6 @@ try {
     enqueue = function (task) {
         setTimeout(task, 0);
     };
-}
-
-var print;
-if (typeof console !== "undefined") {
-    // browsers in debug mode, Node
-    print = function (message) {
-        console.log(message);
-    };
-} else if (typeof require !== "undefined") {
-    // Narwhal
-    print = require("system").print;
-} else {
-    // browsers otherwise
-    print = function () {}
 }
 
 // useful for an identity stub and default resolvers
@@ -114,7 +102,7 @@ function defer() {
 
     var promise = create(Promise.prototype);
 
-    promise.emit = function () {
+    promise[DUCK] = function () {
         var args = Array.prototype.slice.call(arguments);
         if (pending) {
             pending.push(args);
@@ -173,7 +161,7 @@ function Promise(descriptor, fallback, valueOf) {
 
     var promise = create(Promise.prototype);
 
-    promise.emit = function (op, resolved /* ...args */) {
+    promise[DUCK] = function (op, resolved /* ...args */) {
         var args = Array.prototype.slice.call(arguments, 2);
         var result;
         if (descriptor[op])
@@ -206,7 +194,7 @@ freeze(Promise.prototype);
  */
 exports.isPromise = isPromise;
 function isPromise(object) {
-    return object instanceof Promise;
+    return object && typeof object[DUCK] === "function";
 };
 
 /**
@@ -238,12 +226,15 @@ function isRejected(object) {
 exports.reject = reject;
 function reject(reason) {
     return Promise({
-        "when": function (rejected) {
-            return rejected ? rejected(reason) : reject(reason);
+    }, function fallback(op, resolved, rejected) {
+        if (op === "when") {
+            return rejected ?
+                rejected(reason) :
+                reject(reason);
+        } else {
+            resolved = resolved || identity;
+            return resolved(reject(reason));
         }
-    }, function fallback(op, resolved) {
-        resolved = resolved || identity;
-        return resolved(reject(reason));
     }, function valueOf() {
         var rejection = create(reject.prototype);
         rejection.reason = reason;
@@ -251,8 +242,9 @@ function reject(reason) {
     });
 }
 
-reject.prototype = create(Promise.prototype);
-reject.prototype.constructor = reject;
+reject.prototype = create(Promise.prototype, {
+    constructor: { value: reject }
+});
 
 /**
  * Constructs a promise for an immediate reference.
@@ -271,13 +263,19 @@ function ref(object) {
             return object;
         },
         "get": function (name) {
+            if (!object)
+                throw new Error("Cannot get property " + name + " of " + object);
             return object[name];
         },
         "put": function (name, value) {
-            object[name] = value;
+            if (!object)
+                throw new Error("Cannot set property " + name + " of " + object + " to " + value);
+            return object[name] = value;
         },
-        "delete": function (name) {
-            delete object[name];
+        "del": function (name) {
+            if (!object)
+                throw new Error("Cannot delete property " + name + " of " + object);
+            return delete object[name];
         },
         "post": function (name /*...args*/) {
             var args = Array.prototype.slice.call(arguments, 1);
@@ -305,8 +303,12 @@ function ref(object) {
  */
 exports.def = def;
 function def(object) {
-    return Promise({
-        "isDef": function () {}
+    var self = Promise({
+        "when": function (reject) {
+            return self;
+        },
+        "isDef": function () {
+        }
     }, function fallback(op, resolved) {
         var args = Array.prototype.slice.call(arguments, 2);
         var result = send.apply(undefined, [object, op].concat(args));
@@ -315,6 +317,7 @@ function def(object) {
     }, function valueOf() {
         return object.valueOf();
     });
+    return self;
 }
 
 /**
@@ -341,12 +344,22 @@ function when(value, resolved, rejected) {
         if (done)
             return;
         done = true;
-        deferred.resolve(ref(value).emit("when", resolved, rejected));
+        deferred.resolve(
+            ref(value)[DUCK](
+                "when",
+                resolved,
+                rejected
+            )
+        );
     }, function (reason) {
         if (done)
             return;
         done = true;
-        deferred.resolve(rejected ? rejected(reason) : reject(reason));
+        deferred.resolve(
+            rejected ?
+            rejected(reason) :
+            reject(reason)
+        );
     });
     return deferred.promise;
 }
@@ -444,7 +457,8 @@ exports.del = Method("del");
  * @param ...args   array of invocation arguments
  * @return promise for the return value
  */
-exports.post = Method("post");
+// post is used internally, so we have to bind
+var post = exports.post = Method("post");
 
 /**
  * Requests the names of the owned properties of a promised
@@ -477,13 +491,14 @@ exports.error = function (reason) {
 /*
  * Enqueues a promise operation for a future turn.
  */
-function forward(promise /*, op, resolved, ... */) {
+function forward(promise, op, resolved /* ... */) {
     var args = Array.prototype.slice.call(arguments, 1);
     enqueue(function () {
         try {
-            promise.emit.apply(promise, args);
+            promise[DUCK].apply(promise, args);
         } catch (exception) {
-            print(exception.stack || exception);
+            typeof console !== "undefined" && console.warn(exception.stack || exception.message || exception);
+            resolved(reject(exception));
         }
     });
 }
