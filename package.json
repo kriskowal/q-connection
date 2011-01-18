@@ -6,7 +6,8 @@
     "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
     "contributors": [
         "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
-        "Mark Miller <erights@google.com>"
+        "Mark Miller <erights@google.com>",
+        "Irakli Gozalishvili <rfobic@gmail.com> (http://jeditoolkit.com/)"
     ],
     "bugs": {
         "mail": "kris@cixar.com",
@@ -19,22 +20,30 @@
         }
     ],
     "main": "lib/q-comm.js",
-    "modules": {
-        "webworker": "./lib/q-comm/webworker",
-        "messages": "./lib/q-comm/messages",
-        "socket.io-server": "./lib/q-comm/socket.io-server"
+    "dependencies": {
+        "q": ">=0.2.5"
+    },
+    "overlay": {
+        "node": {
+            "modules": {
+                "webworker": "./lib/q-comm/webworker",
+                "messages": "./lib/q-comm/messages",
+                "socket.io-server": "./lib/q-comm/socket.io-server"
+            },
+            "dependencies": {
+                "q": ">=0.2.5",
+                "uuid": ">=0.0.2",
+                "socket.io": "0.6.0",
+                "n-util": "0.0.1"
+            }
+        }
     },
     "repository": {
         "type": "git",
         "url": "http://github.com/kriskowal/q-comm.git"
     },
     "engines": {
-        "node": ">=0.2.0"
-    },
-    "dependencies": {
-        "q": ">=0.2.5",
-        "uuid": ">=0.0.2",
-        "socket.io": "0.6.0",
-        "n-util": "0.0.1"
+        "node": ">=0.2.0",
+        "jetpack": ">=0.9.0"
     }
 }
