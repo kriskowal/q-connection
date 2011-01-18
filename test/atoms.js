@@ -47,4 +47,16 @@ exports['test put atom'] = function (assert, done) {
   });
 }
 
+exports['test del'] = function (assert, done) {
+  var peers = utils.createPeers({ foo: 'bar' });
+
+  Q.when(Q.del(peers.remote, 'foo'), function(value) {
+    assert.ok(!('foo' in peers.object), 'property must be deleted');
+    done();
+  }, function(reason) {
+    assert.fail(reason);
+    done();
+  });
+}
+
 if (module == require.main) require('test').run(exports)
