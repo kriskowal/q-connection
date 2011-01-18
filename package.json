@@ -34,7 +34,11 @@
                 "q": ">=0.2.5",
                 "uuid": ">=0.0.2",
                 "socket.io": "0.6.0",
-                "n-util": "0.0.1"
+                "n-util": "0.0.1",
+                "test": "0.0.10"
+            },
+            "scripts": {
+                "test": "node test/all.js"
             }
         }
     },
