@@ -1,4 +1,7 @@
 
+0.1.2
+ - Added Mozilla Jetpack packaging support. (gozala)
+
 0.1.1
  - Alterations to far references
  - Upgraded Q for duck-promises
