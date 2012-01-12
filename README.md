@@ -107,15 +107,15 @@ interacting with objects synchronously and asynchronously.
 ```
 synchronous                asynchronous
 ------------------         -------------------------------
-value.foo                  Q.get(value, "foo")
-value.foo = value          Q.put(value, "foo", value)
-delete value.foo           Q.del(value, "foo")
-value.foo(...args)         Q.post(value, "foo", [args])
-value.foo(...args)         Q.invoke(value, "foo", ...args)
-foo(...args)               Q.apply(foo, null, [args])
-foo(...args)               Q.call(foo, null, ...args)
-foo.call(value, ...args)   Q.apply(foo, value, [args])
-foo.apply(value, [args])   Q.call(foo, value, ...args)
+value.foo                  promise.get("foo")
+value.foo = value          promise.put("foo", value)
+delete value.foo           promise.del("foo")
+value.foo(...args)         promise.post("foo", [args])
+value.foo(...args)         promise.invoke("foo", ...args)
+value(...args)             promise.apply(null, [args])
+value(...args)             promise.call(null, ...args)
+value.call(thisp, ...args) promise.apply(thisp, [args])
+value.apply(thisp, [args]) promise.call(thisp, ...args)
 ```
 
 All of the asynchronous functions return promises for the
@@ -185,6 +185,22 @@ all internally converted into a Q Channel.  If you are using a message
 channel that provides a different API than this or a WebWorker,
 WebSocket, or MessagePort, you can adapt it to any of these interfaces
 and Q-Comm will handle it.
+
+This is probably the simplest way to create a channel duck-type,
+assuming that you’ve got a connection instance of the Node variety.
+
+```javascript
+var port = {
+    postMessage: function (message) {
+        connection.send(message);
+    },
+    onmessage: null // gets filled in by Q-Comm
+};
+connection.on("message", function (data) {
+    port.onmessage({data: ""})
+});
+var remote = Connection(port, local);
+```
 
 ## Q Channels
 
