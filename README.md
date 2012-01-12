@@ -61,6 +61,22 @@ var remote = Q_COMM.Connection(socket, local);
 ```
 
 ```javascript
+// To communicate with a single frame on the same origin
+// (multiple frames will require some handshaking event sources)
+var iframe = document.frames[0];
+var child = Q_COMM.Connection(iframe.contentWindow, local, {
+    origin: window.location.origin
+})
+```
+
+```javascript
+// To communicate with a parent frame on the same origin
+var child = Q_COMM.Connection(window, local, {
+    origin: window.location.origin
+})
+```
+
+```javascript
 // With a message port
 var port = new MessagePort();
 var near = Q_COMM.Connection(port[0]);

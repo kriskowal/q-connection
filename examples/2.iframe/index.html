@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+    <head>
+        <script src="../../node_modules/q/q.js"></script>
+        <script src="uuid.js"></script>
+        <script src="../../q-comm.js"></script>
+    </head>
+    <body>
+        <iframe id="iframe" src="iframe.html"></iframe>
+        <script>
+
+            var iframe = document.getElementById("iframe")
+            var child = iframe.contentWindow;
+
+            var remote = Q_COMM.Connection(child, {
+                "hi": function (message) {
+                    console.log("index.html:", message);
+                    return "Hi";
+                }
+            }, {
+                origin: window.location.origin
+            });
+
+            remote.invoke("hi", "Hello, Child!")
+            .then(function (message) {
+                console.log("index.html:", message);
+            })
+            .end();
+
+        </script>
+    </body>
+</html>

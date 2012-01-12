@@ -43,14 +43,14 @@ var has = Object.prototype.hasOwnProperty;
  */
 exports.Connection = Connection;
 function Connection(connection, local, options) {
-    connection = adapt(connection);
     options = options || {};
     var makeId = options.makeId || function () {
         return UUID.generate();
     };
     var locals = Lru(options.max || Infinity);
+    connection = adapt(connection, options.origin);
 
-    var debugKey = Math.random().toString(16).slice(2, 4);
+    var debugKey = Math.random().toString(16).slice(2, 4).toUpperCase() + ":";
     function _debug() {
         debug.apply(null, [debugKey].concat(Array.prototype.slice.call(arguments)));
     }
@@ -58,7 +58,7 @@ function Connection(connection, local, options) {
     // message reciever loop
     Q.when(connection.get(), get).end();
     function get(message) {
-        _debug("message receiver loop", message);
+        _debug("receive:", message);
         Q.when(connection.get(), get).end();
         receive(message);
     }
@@ -66,7 +66,6 @@ function Connection(connection, local, options) {
     // message receiver
     function receive(message) {
         message = JSON.parse(message);
-        _debug(message);
         if (!receivers[message.type])
             return; // ignore bad message types
         if (!locals.has(message.to))
@@ -96,43 +95,40 @@ function Connection(connection, local, options) {
             // connect the local response promise with the
             // remote response promise:
 
-            // determine whether the response promise
-            // resolves to a "ref" promise or a "master"
-            // promise.  "ref" promises get resolved and can
-            // be observed remotely with a "when" call, but
-            // "master" promises only forward their messages.
-            // "master" promises are distinguishable from other
-            // promises because they respond to an "isMaster"
-            // message with a resolution instead of a
-            // rejection.
-            var isMaster = Q.send(response, 'isMaster');
-            Q.when(isMaster, function () {
-                // if it is a def, it will respond, don't
-                // set up a when listener on the other side,
-                // just instruct the other peer to forward
-                // messages to our local response promise.
-                connection.put(JSON.stringify({
-                    "type": "resolve",
-                    "to": message.from,
-                    "resolution": encode(response)
-                }));
-            }, function () {
-                // if the value is ever resolved, send the
-                // fully resolved value across the wire
-                Q.when(response, function (resolution) {
-                    connection.put(JSON.stringify({
+            // if the value is ever resolved, send the
+            // fulfilled value across the wire
+            Q.when(response, function (resolution) {
+                var envelope;
+                try {
+                    envelope = JSON.stringify({
                         "type": "resolve",
                         "to": message.from,
                         "resolution": encode(resolution)
-                    }));
-                }, function (reason) {
-                    // otherwise, transmit a rejection
-                    connection.put(JSON.stringify({
+                    });
+                } catch (exception) {
+                    envelope = JSON.stringify({
+                        "type": "resolve",
+                        "to": message.from,
+                        "resolution": null
+                    });
+                }
+                connection.put(envelope);
+            }, function (reason) {
+                var envelope;
+                try {
+                    envelope = JSON.stringify({
                         "type": "resolve",
                         "to": message.from,
                         "resolution": {"!": encode(reason)}
-                    }));
-                });
+                    });
+                } catch (exception) {
+                    envelope = JSON.stringify({
+                        "type": "resolve",
+                        "to": message.from,
+                        "resolution": {"!": null}
+                    });
+                }
+                connection.put(envelope);
             })
             .end();
 
@@ -154,7 +150,7 @@ function Connection(connection, local, options) {
     // a utility for resolving the local promise
     // for a given identifier.
     function resolveLocal(id, value) {
-        _debug('resolve local', id, value);
+        _debug('resolve:', "L" + JSON.stringify(id), JSON.stringify(value));
         locals.get(id).resolve(value);
     }
 
@@ -166,7 +162,7 @@ function Connection(connection, local, options) {
             var localId = makeId();
             var response = makeLocal(localId);
             var args = Array.prototype.slice.call(arguments, 1);
-            _debug('sending ' + op, args);
+            _debug('sending:', "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(args));
             connection.put(JSON.stringify({
                 "type": "send",
                 "to": id,
@@ -191,9 +187,12 @@ function Connection(connection, local, options) {
             return object.map(encode);
         } else if (typeof object === "object") {
             var result = {};
-            for (var name in object) {
-                if (has.call(object, name)) {
-                    result[name] = encode(object[name]);
+            for (var key in object) {
+                if (has.call(object, key)) {
+                    var newKey = key;
+                    if (/^[!@]$/.exec(key))
+                        newKey = key + key;
+                    result[newKey] = encode(object[key]);
                 }
             }
             return result;
@@ -217,10 +216,8 @@ function Connection(connection, local, options) {
             for (var key in object) {
                 if (has.call(object, key)) {
                     var newKey = key;
-                    /* TODO mirror in encode
                     if (/^[!@]+$/.exec(key))
                         newKey = key.substring(1);
-                    */
                     newObject[newKey] = decode(object[key]);
                 }
             }
@@ -245,24 +242,14 @@ function Connection(connection, local, options) {
 
 // Coerces a Worker to a Connection
 // Idempotent: Passes Connections through unaltered
-function adapt(port) {
-    var send = port.postMessage || port.send;
-    if (!send)
-        return port; // it's presumably a connection object already
-    // Message ports have a start method; call it to make sure
-    // that messages get sent.
-    port.start && port.start();
-    // onmessage is one thing common between WebSocket and
-    // WebWorker message ports.
-    var queue = Queue();
-    port.onmessage = function (event) {
-        queue.put(event.data);
-    };
-    var close = function () {
-        port.close && port.close();
-        return queue.close();
-    };
-    if (port.send) {
+function adapt(port, origin) {
+    if (port.postMessage) {
+        // MessagePorts
+        send = function (message) {
+            // some message ports require an "origin"
+            port.postMessage(message, origin);
+        };
+    } else if (port.send) {
         // WebSockets have a "send" method, indicating
         // that we cannot send until the connection has
         // opened.  We change the send method into a
@@ -278,7 +265,30 @@ function adapt(port) {
             queue.close();
             deferred.reject("Connection closed.");
         });
+    } else if (port.get && port.put) {
+        return port;
+    } else {
+        throw new Error("An adaptable message port required");
     }
+    // Message ports have a start method; call it to make sure
+    // that messages get sent.
+    port.start && port.start();
+    // onmessage is one thing common between WebSocket and
+    // WebWorker message ports.
+    var queue = Queue();
+    if (port.addEventListener) {
+        port.addEventListener("message", function (event) {
+            queue.put(event.data);
+        }, false);
+    } else {
+        port.onmessage = function (event) {
+            queue.put(event.data);
+        };
+    }
+    var close = function () {
+        port.close && port.close();
+        return queue.close();
+    };
     return {
         "get": queue.get,
         "put": function (message) {
