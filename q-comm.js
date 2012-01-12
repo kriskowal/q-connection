@@ -1,16 +1,36 @@
 // vim:ts=4:sts=4:sw=4:
 // this module can be loaded both as a CommonJS module and
 // as a browser script.  If included as a script, it constructs
-// a "/q-comm" global property with its API and requires
-// "/q" and and "/uuid" to be provided before its execution
+// a Q_COMM global property with its API and requires
+// Q and UUID to be provided before its execution
 // by the epynomous scripts/modules.
+(function (definition) {
+    var global = this;
+    // RequireJS
+    if (typeof define === "function") {
+        define(function (require, exports) {
+            definition(require, exports);
+        });
+    // CommonJS
+    } else if (typeof exports === "object") {
+        definition(require, exports);
+    // <script>
+    } else {
+        definition(
+            function (id) {
+                return global[id.toUpperCase()];
+            },
+            Q_COMM = {}
+        );
+    }
+})
 (function (require, exports) {
 
 var Q = require("q");
 var UUID = require("uuid");
 
 function debug() {
-    console.log.apply(console, arguments);
+    //typeof console !== "undefined" && console.log.apply(console, arguments);
 }
 
 var rootId = "";
@@ -21,10 +41,14 @@ var has = Object.prototype.hasOwnProperty;
  * @param connection
  * @param local
  */
-exports.Peer = Peer;
-function Peer(connection, local, max) {
-    max = max || Infinity;
-    var locals = Lru(max);
+exports.Connection = Connection;
+function Connection(connection, local, options) {
+    connection = adapt(connection);
+    options = options || {};
+    var makeId = options.makeId || function () {
+        return UUID.generate();
+    };
+    var locals = Lru(options.max || Infinity);
 
     var debugKey = Math.floor(Math.random() * 256).toString(16);
     function _debug() {
@@ -32,9 +56,10 @@ function Peer(connection, local, max) {
     }
 
     // message reciever loop
-    Q.when(connection.get(), get);
+    Q.when(connection.get(), get).end();
     function get(message) {
-        Q.when(connection.get(), get);
+        _debug("message receiver loop", message);
+        Q.when(connection.get(), get).end();
         receive(message);
     }
 
@@ -60,11 +85,11 @@ function Peer(connection, local, max) {
         // promise to a local promise.
         "send": function (message) {
 
-            // forward the message to the local promise, 
+            // forward the message to the local promise,
             // which will return a response promise
             var local = locals.get(message.to).promise;
             var response = Q.send.apply(
-                undefined,
+                void 0,
                 [local, message.op].concat(decode(message.args))
             );
 
@@ -72,16 +97,16 @@ function Peer(connection, local, max) {
             // remote response promise:
 
             // determine whether the response promise
-            // resolves to a "ref" promise or a "def"
+            // resolves to a "ref" promise or a "master"
             // promise.  "ref" promises get resolved and can
             // be observed remotely with a "when" call, but
-            // "def" promises only forward their messages.
-            // "def" promises are distinguishable from other
-            // promises because they respond to an "isDef"
+            // "master" promises only forward their messages.
+            // "master" promises are distinguishable from other
+            // promises because they respond to an "isMaster"
             // message with a resolution instead of a
             // rejection.
-            var isDef = Q.send(response, 'isDef');
-            Q.when(isDef, function () {
+            var isMaster = Q.send(response, 'isMaster');
+            Q.when(isMaster, function () {
                 // if it is a def, it will respond, don't
                 // set up a when listener on the other side,
                 // just instruct the other peer to forward
@@ -108,7 +133,8 @@ function Peer(connection, local, max) {
                         "resolution": {"!": encode(reason)}
                     }));
                 });
-            });
+            })
+            .end();
 
         }
     }
@@ -121,7 +147,6 @@ function Peer(connection, local, max) {
         } else {
             var deferred = Q.defer();
             locals.set(id, deferred);
-            //_debug(locals.keys());
             return deferred.promise;
         }
     }
@@ -136,12 +161,12 @@ function Peer(connection, local, max) {
     // makes a promise that will send all of its events to a
     // remote object.
     function makeRemote(id) {
-        return Q.Promise({
-        }, function (op, resolved, rejected) {
-            var localId = UUID.generate();
+        return Q.makePromise({
+        }, function (op) {
+            var localId = makeId();
             var response = makeLocal(localId);
-            var args = Array.prototype.slice.call(arguments, 2);
-            _debug('sending ' + op);
+            var args = Array.prototype.slice.call(arguments, 1);
+            _debug('sending ' + op, args);
             connection.put(JSON.stringify({
                 "type": "send",
                 "to": id,
@@ -158,7 +183,7 @@ function Peer(connection, local, max) {
     // "QSON": serialized promise objects.
     function encode(object) {
         if (Q.isPromise(object)) {
-            var id = UUID.generate();
+            var id = makeId();
             makeLocal(id);
             resolveLocal(id, object);
             return {"@": id};
@@ -209,15 +234,95 @@ function Peer(connection, local, max) {
     // the local and remote side have a "root" promise
     // object. On each side, the respective remote object is
     // returned, and the object passed as an argument to
-    // Peer is used as the local object.  The identifier of
+    // Connection is used as the local object.  The identifier of
     // the root object is an empty-string by convention.
-    // All other identifiers are UUIDs.
+    // All other identifiers are numbers.
     makeLocal(rootId);
     resolveLocal(rootId, local);
     return makeRemote(rootId);
 
 }
 
+// Coerces a Worker to a Connection
+// Idempotent: Passes Connections through unaltered
+function adapt(port) {
+    var send = port.postMessage || port.send;
+    if (!send)
+        return port; // it's presumably a connection object already
+    // Message ports have a start method; call it to make sure
+    // that messages get sent.
+    port.start && port.start();
+    // onmessage is one thing common between WebSocket and
+    // WebWorker message ports.
+    var queue = Queue();
+    port.onmessage = function (event) {
+        queue.put(event.data);
+    };
+    var close = function () {
+        port.close && port.close();
+        return queue.close();
+    };
+    if (port.send) {
+        // WebSockets have a "send" method, indicating
+        // that we cannot send until the connection has
+        // opened.  We change the send method into a
+        // promise for the send method, resolved after
+        // the connection opens, rejected if it closes
+        // before it opens.
+        var deferred = Q.defer();
+        send = deferred.promise;
+        port.addEventListener("open", function () {
+            deferred.resolve(port.send);
+        });
+        port.addEventListener("close", function () {
+            queue.close();
+            deferred.reject("Connection closed.");
+        });
+    }
+    return {
+        "get": queue.get,
+        "put": function (message) {
+            return Q.invoke(send, "call", port, message);
+        },
+        "close": close,
+        "closed": queue.closed
+    };
+}
+
+exports.Queue = Queue;
+function Queue() {
+    var ends = Q.defer();
+    var closed = Q.defer();
+    return {
+        "put": function (value) {
+            var next = Q.defer();
+            ends.resolve({
+                "head": value,
+                "tail": next.promise
+            });
+            ends.resolve = next.resolve;
+        },
+        "get": function () {
+            var result = Q.get(ends.promise, "head");
+            ends.promise = Q.get(ends.promise, "tail");
+            return Q.when(result, null, function (reason) {
+                closed.resolve();
+                return Q.reject(reason);
+            });
+        },
+        "closed": closed.promise,
+        "close": function (reason) {
+            var end = {"head": Q.reject(reason)};
+            end.tail = end;
+            ends.resolve(end);
+            return closed.promise;
+        }
+    };
+}
+
+// Least recently used. Caches up to maximum number of key: value pairs.
+// Has a similar API to WeakMap, but avoids leaking by dropping, which
+// will lead to broken promises on the remote side
 var hasOwn = Object.prototype.hasOwnProperty;
 function Lru(maxLength) {
     if (!maxLength)
@@ -269,13 +374,11 @@ function Lru(maxLength) {
     }
     function del(key) {
         var node = map[key];
+        delete map[key];
         remove(node);
     }
     function has(key) {
         return hasOwn.call(map, key);
-    }
-    function keys() {
-        return Object.keys(map);
     }
 
     function toSource() {
@@ -293,23 +396,13 @@ function Lru(maxLength) {
     return {
         "get": get,
         "set": set,
-        "del": del,
+        "delete": del,
         "has": has,
         "toSource": toSource,
-        "toString": toString,
-        "keys": keys
+        "toString": toString
     }
 }
 
 // boilerplate that permits this module to be used as a
 // <script> in less-than-ideal situations.
-}).apply(this, typeof exports !== "undefined" ? [
-    require, exports
-] : [
-    (function (global) {
-        return function (id) {
-            return global["/" + id];
-        };
-    })(this),
-    this["/q-comm"] = {}
-]);
+});

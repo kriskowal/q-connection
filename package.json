@@ -1,17 +1,19 @@
 {
     "name": "q-comm",
+    "version": "0.3.0",
     "description": "An inter-worker asynchronous promise communication system.",
-    "version": "0.1.2",
     "homepage": "http://github.com/kriskowal/q-comm/",
     "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
     "contributors": [
         "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
-        "Mark Miller <erights@google.com>",
         "Irakli Gozalishvili <rfobic@gmail.com> (http://jeditoolkit.com/)"
+    ],
+    "credits": [
+        "Mark Miller <erights@google.com>"
     ],
     "bugs": {
         "mail": "kris@cixar.com",
-        "web": "http://github.com/kriskowal/q-comm/issues"
+        "url": "http://github.com/kriskowal/q-comm/issues"
     },
     "licenses": [
         {
@@ -19,32 +21,20 @@
             "url": "http://github.com/kriskowal/q-comm/raw/master/LICENSE"
         }
     ],
-    "main": "lib/q-comm.js",
+    "main": "q-comm.js",
     "dependencies": {
-        "q": ">=0.2.5"
+        "q": "0.8.0",
+        "uuid": ">=0.0.2"
     },
-    "overlay": {
-        "node": {
-            "modules": {
-                "webworker": "./lib/q-comm/webworker",
-                "messages": "./lib/q-comm/messages",
-                "socket.io-server": "./lib/q-comm/socket.io-server"
-            },
-            "dependencies": {
-                "q": ">=0.2.5",
-                "uuid": ">=0.0.2",
-                "socket.io": "0.6.0",
-                "n-util": "0.0.1",
-                "test": "0.0.10"
-            },
-            "scripts": {
-                "test": "node test/all.js"
-            }
-        }
+    "devDependencies": {
+        "test": ">=0.1.0"
+    },
+    "scripts": {
+        "test": "node test/all.js"
     },
     "repository": {
         "type": "git",
-        "url": "http://github.com/kriskowal/q-comm.git"
+        "url": "git://github.com/kriskowal/q-comm.git"
     },
     "engines": {
         "node": ">=0.2.0",

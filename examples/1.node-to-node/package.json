@@ -1,0 +1,8 @@
+{
+    "name": "q-comm-node-to-node-example",
+    "version": "0.0.0",
+    "dependencies": {
+        "websocket-server": "1.4.04",
+        "websocket-client": "1.0.0"
+    }
+}

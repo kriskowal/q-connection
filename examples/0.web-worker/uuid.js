@@ -96,6 +96,6 @@ exports.generate = function (len, radix) {
 })(
     typeof exports !== "undefined" ?
     exports :
-    this["/uuid"] = {}
+    UUID = {}
 );
 

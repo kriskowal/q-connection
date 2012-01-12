@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+    <head>
+        <script src="../../node_modules/q/q.js"></script>
+        <script src="uuid.js"></script>
+        <script src="../../q-comm.js"></script>
+        <script>
+            var worker = new Worker("worker.js");
+            var remote = Q_COMM.Connection(worker, {
+                "hi": function (message) {
+                    console.log(message);
+                }
+            });
+
+            remote.invoke("hi", "Hello, Child!")
+            .then(function (message) {
+                console.log(message);
+            })
+            .end();
+
+        </script>
+    </head>
+</html>

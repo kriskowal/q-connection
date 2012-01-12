@@ -3,7 +3,7 @@
 var EventEmitter = require("events").EventEmitter;
 var enqueue = require("event-queue").enqueue;
 var comm = require("q-comm");
-var Queue = require("q/queue").Queue;
+var Queue = require("qq").Queue;
 var Q = require("q");
 
 
@@ -35,13 +35,13 @@ exports.Connection = function Connection(port, id) {
 };
 
 exports.Peer = function Peer(port, id, object) {
-  return comm.Peer(exports.Connection(port, id), object);
+  return comm.Connection(exports.Connection(port, id), object);
 };
 
 exports.createPeers = function createPeers (object) {
   var address = (new Date()).getTime();
   var channel = exports.Channel();
-  var local = Q.def(object);
+  var local = Q.master(object);
   var remote = exports.Peer(channel.b, address);
   exports.Peer(channel.a, address, local);
   return {
