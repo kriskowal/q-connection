@@ -19,7 +19,7 @@ This is how it looks:
 ```javascript
 var Q = require("q"); // or include the <script>
 var Q_COMM = require("q-comm"); // or include the <script>
-var remote = Q_COMM.Connection(port, local_opt, options_opt);
+var remote = Q_COMM.Connection(port, local);
 ```
 
 The ``remote`` object is a promise for the ``local`` object
@@ -74,26 +74,23 @@ cannot be serialized with JSON.
 ```javascript
 var Q = require("q");
 var counter = 0;
-var local = Q.master({
+var local = {
     "next": function () {
         return counter++;
     }
-});
+};
 ```
 
 In this case, the local object has a "next" function that
 returns incremental values.  Since the function closes on
 local state (the ``counter``), it can't be sent to another
-process.  We annotate such objects with ``Q.master``.
-Otherwise, the object would be serialized and sent across to
-the other worker to resolve the remote promise.
+process.
 
 On the other side of the connection, we can asynchronously
 call the remote method and receive a promise for the result.
 
 ```javascript
-var Q = require("q");
-Q.invoke(remote, "next")
+remote.invoke("next")
 .then(function (id) {
     console.log("counter at", i);
 });
@@ -124,9 +121,7 @@ foo.apply(value, [args])   Q.call(foo, value, ...args)
 All of the asynchronous functions return promises for the
 eventual result.  For the asynchronous functions, the value
 may be any value including local values, local promises, and
-remote promises.  However, the only way to interact with
-a ``master`` remote promise is through the asynchronous
-functions.
+remote promises.
 
 The benefit to using the asynchronous API when interacting
 with remote objects is that you can send chains of messages
