@@ -50,7 +50,7 @@ function Connection(connection, local, options) {
     };
     var locals = Lru(options.max || Infinity);
 
-    var debugKey = Math.floor(Math.random() * 256).toString(16);
+    var debugKey = Math.random().toString(16).slice(2, 4);
     function _debug() {
         debug.apply(null, [debugKey].concat(Array.prototype.slice.call(arguments)));
     }
