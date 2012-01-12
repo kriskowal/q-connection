@@ -214,7 +214,7 @@ var remote = Connection(port, local);
     sent.
 -   ``closed`` a promise that is fulfilled with the reason for closing.
 
-Q-Comm exports an ``IndefiniteQueue`` that supports this API which
+Q-Comm exports an indefinite ``Queue`` that supports this API which
 greatly simplifies the implementation of adapters.
 
 -   ``get()`` returns a promise for the next value in order that is
