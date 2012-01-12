@@ -1,5 +1,11 @@
 <!-- vim:ts=4:sts=4:sw=4:et:tw=60 -->
 
+# 0.3.1
+
+-   Added example of communicating with an iframe.
+-   Added "origin" option to simplify communicating between
+    window message ports.
+
 # 0.3.0 - REBOOT
 
 -   Q_COMM.Connection now accepts message ports and

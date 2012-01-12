@@ -1,6 +1,6 @@
 {
     "name": "q-comm",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "An inter-worker asynchronous promise communication system.",
     "homepage": "http://github.com/kriskowal/q-comm/",
     "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
