@@ -23,11 +23,12 @@
     ],
     "main": "q-comm.js",
     "dependencies": {
-        "q": "0.8.0",
+        "q": "0.8.2",
         "uuid": ">=0.0.2"
     },
     "devDependencies": {
-        "test": ">=0.1.0"
+        "test": ">=0.1.0",
+        "event-queue": ">=0.1.0"
     },
     "scripts": {
         "test": "node test/all.js"
