@@ -5,12 +5,8 @@
 // interface.
 (function (definition) {
 
-    // NodeJS
-    if (typeof process !== "undefined") {
-        throw new Error("Use server-side UUID on Node");
-
     // RequireJS
-    } else if (typeof define === "function") {
+    if (typeof define === "function") {
         define([], function () {
             var exports = {};
             definition(exports);

@@ -10,10 +10,10 @@
     if (typeof define === "function") {
         define(["../q/q", "./uuid.js"], function (Q, UUID) {
             var exports = {};
-            var inScope = {q: Q, uuid: UUID};
+            var imports = {"q": Q, "./uuid": UUID};
             definition(
                 function (id) {
-                    return inScope[id];
+                    return imports[id];
                 },
                 exports
             );
@@ -26,9 +26,10 @@
 
     // <script>
     } else {
+        var imports = {"q": Q, "./uuid": UUID};
         definition(
             function (id) {
-                return global[id.toUpperCase()];
+                return imports[id];
             },
             Q_COMM = {}
         );
@@ -37,7 +38,7 @@
 })(function (require, exports) {
 
 var Q = require("q");
-var UUID = require("uuid");
+var UUID = require("./uuid");
 
 function debug() {
     //typeof console !== "undefined" && console.log.apply(console, arguments);
