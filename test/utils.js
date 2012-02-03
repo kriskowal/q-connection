@@ -2,8 +2,9 @@
 
 var EventEmitter = require("events").EventEmitter;
 var enqueue = require("event-queue").enqueue;
-var comm = require("../q-comm");
-var Queue = require("qq").Queue;
+var COMM = require("../q-comm");
+var Connection = COMM.Connection;
+var Queue = COMM.Queue;
 var Q = require("q");
 
 
@@ -35,7 +36,7 @@ exports.Connection = function Connection(port, id) {
 };
 
 exports.Peer = function Peer(port, id, object) {
-  return comm.Connection(exports.Connection(port, id), object);
+  return Connection(exports.Connection(port, id), object);
 };
 
 exports.createPeers = function createPeers (object) {
