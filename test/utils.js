@@ -2,7 +2,7 @@
 
 var EventEmitter = require("events").EventEmitter;
 var enqueue = require("event-queue").enqueue;
-var comm = require("q-comm");
+var comm = require("../q-comm");
 var Queue = require("qq").Queue;
 var Q = require("q");
 
