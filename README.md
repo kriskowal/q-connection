@@ -1,3 +1,4 @@
+[![Build Status](https://secure.travis-ci.org/kriskowal/q-comm.png)](http://travis-ci.org/kriskowal/q-comm)
 
 Asynchronous Remote Objects
 ---------------------------
