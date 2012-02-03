@@ -8,8 +8,16 @@
     var global = this;
     // RequireJS
     if (typeof define === "function") {
-        define(function (require, exports) {
-            definition(require, exports);
+        define(['../q/q', './uuid'], function (Q, UUID) {
+            var exports = {};
+            var inScope = {q: Q, uuid: UUID};
+            definition(
+              function(id) {
+                return inScope[id];
+              },
+              exports
+            );
+            return exports;
         });
     // CommonJS
     } else if (typeof exports === "object") {
