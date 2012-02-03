@@ -23,8 +23,7 @@
     ],
     "main": "q-comm.js",
     "dependencies": {
-        "q": "0.8.2",
-        "uuid": ">=0.0.2"
+        "q": "0.8.2"
     },
     "devDependencies": {
         "test": ">=0.1.0",
