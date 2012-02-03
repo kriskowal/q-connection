@@ -1,27 +1,29 @@
 // vim:ts=4:sts=4:sw=4:
-// this module can be loaded both as a CommonJS module and
-// as a browser script.  If included as a script, it constructs
-// a Q_COMM global property with its API and requires
-// Q and UUID to be provided before its execution
-// by the epynomous scripts/modules.
+// This module can be loaded as a RequireJS module, a CommonJS module, or
+// a browser script.  As a script, it creates a "Q_COMM" global name space
+// and requires "Q" and "UUID" to already exist.  As a RequireJS module,
+// it requires the "Q" package to be installed in the parent directory.
 (function (definition) {
     var global = this;
+
     // RequireJS
     if (typeof define === "function") {
-        define(['../q/q', './uuid'], function (Q, UUID) {
+        define(["../q/q", "./uuid.js"], function (Q, UUID) {
             var exports = {};
             var inScope = {q: Q, uuid: UUID};
             definition(
-              function(id) {
-                return inScope[id];
-              },
-              exports
+                function (id) {
+                    return inScope[id];
+                },
+                exports
             );
             return exports;
         });
+
     // CommonJS
     } else if (typeof exports === "object") {
         definition(require, exports);
+
     // <script>
     } else {
         definition(
@@ -31,8 +33,8 @@
             Q_COMM = {}
         );
     }
-})
-(function (require, exports) {
+
+})(function (require, exports) {
 
 var Q = require("q");
 var UUID = require("uuid");
@@ -421,6 +423,4 @@ function Lru(maxLength) {
     }
 }
 
-// boilerplate that permits this module to be used as a
-// <script> in less-than-ideal situations.
 });
