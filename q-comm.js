@@ -323,9 +323,9 @@ function Queue() {
             ends.resolve = next.resolve;
         },
         "get": function () {
-            var result = Q.get(ends.promise, "head");
-            ends.promise = Q.get(ends.promise, "tail");
-            return Q.when(result, null, function (reason) {
+            var result = ends.promise.get("head");
+            ends.promise = ends.promise.get("tail");
+            return result.fail(function (reason) {
                 closed.resolve();
                 return Q.reject(reason);
             });
