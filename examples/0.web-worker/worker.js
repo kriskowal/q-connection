@@ -1,7 +1,7 @@
 
 importScripts(
     "../../node_modules/q/q.js",
-    "uuid.js",
+    "../../uuid.js",
     "../../q-comm.js"
 );
 
