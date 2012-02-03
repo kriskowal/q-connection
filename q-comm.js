@@ -8,7 +8,7 @@
 
     // RequireJS
     if (typeof define === "function") {
-        define(["../q/q", "./uuid.js"], function (Q, UUID) {
+        define(["../q/q", "./uuid"], function (Q, UUID) {
             var exports = {};
             var imports = {"q": Q, "./uuid": UUID};
             definition(
