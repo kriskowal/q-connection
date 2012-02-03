@@ -32,7 +32,9 @@
 
     // generates up to 8 random digits in the upper-case hexadecimal alphabet
     function R(n) {
-        return Math.random().toString(16).slice(2, 2 + n).toUpperCase();
+        return (
+            Math.random().toString(16) + "00000000"
+        ).slice(2, 2 + n).toUpperCase();
     }
 
     // References:
