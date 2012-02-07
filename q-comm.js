@@ -8,7 +8,7 @@
 
     // RequireJS
     if (typeof define === "function") {
-        define(["../q/q", "./uuid.js"], function (Q, UUID) {
+        define(["q/q", "./uuid"], function (Q, UUID) {
             var exports = {};
             var imports = {"q": Q, "./uuid": UUID};
             definition(
@@ -41,7 +41,7 @@ var Q = require("q");
 var UUID = require("./uuid");
 
 function debug() {
-    //typeof console !== "undefined" && console.log.apply(console, arguments);
+   // typeof console !== "undefined" && console.log.apply(console, arguments);
 }
 
 var rootId = "";
@@ -256,10 +256,50 @@ function Connection(connection, local, options) {
 function adapt(port, origin) {
     if (port.postMessage) {
         // MessagePorts
-        send = function (message) {
+        // To avoid losing a message we defer binding 
+        // the send function to the port until we get the
+        // first remote 'hello' message.
+        var deferred = Q.defer();
+        send = deferred.promise;
+
+        sendByMessagePort = function (message) {
             // some message ports require an "origin"
             port.postMessage(message, origin);
         };
+
+        function oneShotIntro(event) {
+            if (event.source !== window) {
+                debug(window.location.toString().split('/').pop()+" Received introduction "+event.data.QCOMM, event);
+                // the introductions are over.
+                port.removeEventListener('message', oneShotIntro);
+                // now on to the main event
+                port.addEventListener("message", function (event) {
+                    // don't process messages from ourselves
+                    if (event.source !== window) { 
+                      queue.put(event.data);
+                    }
+                }, false);
+                
+                if (event.data.QCOMM === 'HELLO') {
+                    debug(window.location.toString().split('/').pop()+" Sending acknowledgement ", event);
+                    // we know for sure the other side is listening,
+                    // so tell it we are ready over here also.
+                    sendByMessagePort({'QCOMM':'ACK'});
+                } // else it was an ACK
+                
+                deferred.resolve(sendByMessagePort);
+                
+            }
+        }
+
+        port.addEventListener('message', oneShotIntro);
+        
+        debug(window.location.toString().split('/').pop()+" Sending introduction ");
+               
+        // If the other side is listening, then this will
+        // be our introduction. Else it gets dropped.
+        sendByMessagePort({'QCOMM':'HELLO'});
+        
     } else if (port.send) {
         // WebSockets have a "send" method, indicating
         // that we cannot send until the connection has
@@ -288,9 +328,14 @@ function adapt(port, origin) {
     // WebWorker message ports.
     var queue = Queue();
     if (port.addEventListener) {
-        port.addEventListener("message", function (event) {
-            queue.put(event.data);
-        }, false);
+        if (!Q.isPromise(send)) {
+            port.addEventListener("message", function (event) {
+                // don't process messages from ourselves
+               if (event.source !== window) { 
+                  queue.put(event.data);
+               }
+            }, false);
+        }
     } else {
         port.onmessage = function (event) {
             queue.put(event.data);
