@@ -24,8 +24,8 @@ var remote = Q_COMM.Connection(port, local);
 ```
 
 The ``remote`` object is a promise for the ``local`` object
-on the other side of the connection.  Likewise, other side
-of the connection will get a promise for your ``local``
+on the other side of the connection.  Likewise, the other
+side of the connection will get a promise for your ``local``
 object.  You are not obliged to provide a local object,
 depending on which end of the connection is providing a
 service.
