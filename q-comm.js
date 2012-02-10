@@ -76,7 +76,6 @@ function Connection(connection, local, options) {
 
     // message receiver
     function receive(message) {
-        message = JSON.parse(message);
         if (!receivers[message.type])
             return; // ignore bad message types
         if (!locals.has(message.to))
@@ -111,33 +110,33 @@ function Connection(connection, local, options) {
             Q.when(response, function (resolution) {
                 var envelope;
                 try {
-                    envelope = JSON.stringify({
+                    envelope = {
                         "type": "resolve",
                         "to": message.from,
                         "resolution": encode(resolution)
-                    });
+                    };
                 } catch (exception) {
-                    envelope = JSON.stringify({
+                    envelope = {
                         "type": "resolve",
                         "to": message.from,
                         "resolution": null
-                    });
+                    };
                 }
                 connection.put(envelope);
             }, function (reason) {
                 var envelope;
                 try {
-                    envelope = JSON.stringify({
+                    envelope = {
                         "type": "resolve",
                         "to": message.from,
                         "resolution": {"!": encode(reason)}
-                    });
+                    };
                 } catch (exception) {
-                    envelope = JSON.stringify({
+                    envelope = {
                         "type": "resolve",
                         "to": message.from,
                         "resolution": {"!": null}
-                    });
+                    };
                 }
                 connection.put(envelope);
             })
@@ -174,13 +173,13 @@ function Connection(connection, local, options) {
             var response = makeLocal(localId);
             var args = Array.prototype.slice.call(arguments, 1);
             _debug('sending:', "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(args));
-            connection.put(JSON.stringify({
+            connection.put({
                 "type": "send",
                 "to": id,
                 "from": localId,
                 "op": op,
                 "args": encode(args)
-            }));
+            });
             return response;
         });
     }
