@@ -55,6 +55,17 @@ var has = Object.prototype.hasOwnProperty;
 exports.Connection = Connection;
 function Connection(connection, local, options) {
     options = options || {};
+    if (Q.isPromise(connection)) {
+      return connection.then(function(asPromisedConnection) {
+        return _Connection(asPromisedConnection, local, options);
+      });
+    } else {
+      return _Connection(connection, local, options);
+    }
+}
+
+function _Connection(connection, local, options) {
+    
     var makeId = options.makeId || function () {
         return UUID.generate();
     };
@@ -249,6 +260,34 @@ function Connection(connection, local, options) {
     return makeRemote(rootId);
 
 }
+
+
+function port(hasPostMessage, origin) {
+    origin = origin || "*";
+    var port = Q.defer();
+    var channel = new MessageChannel();
+    window.addEventListener('message', function awaitIframePort(event) {
+        console.log(window.location.toString()+" got message event: ", event);
+        if (!event.data.type || !event.data.from) {
+             return; // not for us
+        } else {
+            if (event.data.type == "HELLO") {
+                // We won the race so our postMessage was dropped on the floor.
+                // Bask in glory
+                hasPostMessage.postMessage({type: "ACK", from: window.location.toString()}, origin);
+                port.resolve(event.ports[0]);  // this will be port2 from the other side.
+            } else if (event.data.type === "ACK") {
+                // We lost the race so our channel will be used for messaging
+                port.resolve(channel.port1);
+            } else {
+                console.error("Q_COMM event data type invalid", event);
+            }
+       }
+    }, false);
+    hasPostMessage.postMessage({type: "HELLO", from: window.location.toString()}, origin, [channel.port2]);
+    return port.promise;  
+}
+exports.port = port;
 
 // Coerces a Worker to a Connection
 // Idempotent: Passes Connections through unaltered
