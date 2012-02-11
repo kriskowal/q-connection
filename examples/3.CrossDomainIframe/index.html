@@ -10,9 +10,8 @@
         <script>
 
             var iframe = document.getElementById("iframe");
-              Q_COMM.port(iframe)
-              .then(function(port) {
-                var remote = Q_COMM.Connection(port, {
+            // connection is based on iframe
+                var remote = Q_COMM.Connection(iframe, {
                   "hi": function (message) {
                       console.log("index.html: local ", message);
                       return "Hi";
@@ -26,7 +25,6 @@
                   console.log("index.html: invoke then ", message);
                 })
                 .end();
-               });
 
         </script>
     </body>

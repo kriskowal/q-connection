@@ -7,10 +7,13 @@
     </head>
     <body>
         <script>
-        /*globalse window Q_COMM console*/
-        Q_COMM.port(window)
-        .then(function(port) {
-            var remote = Q_COMM.Connection(port, {
+        /*globals window Q_COMM console*/
+        
+        // The port will be derived from the window
+        // window.parent would be better, if we can find a way to distinguish
+        // window.parent from iframe.contentWindow
+        
+           var remote = Q_COMM.Connection(window, {
                 "hi": function (message) {
                     console.log("iframe.html: local ", message);
                     return "Hi";
@@ -24,7 +27,6 @@
                 console.log("iframe.html: invoke then ", response);
             })
             .end();
-        });
         </script>
     </body>
 </html>

@@ -55,6 +55,7 @@ var has = Object.prototype.hasOwnProperty;
 exports.Connection = Connection;
 function Connection(connection, local, options) {
     options = options || {};
+    connection = preAdapt(connection);
     if (Q.isPromise(connection)) {
       return connection.then(function(asPromisedConnection) {
         return _Connection(asPromisedConnection, local, options);
@@ -341,7 +342,7 @@ function parentGetPort(iframeContentWindow, origin) {
     return port.promise;  
 }
 
-function port(iframeEltOrIframeWindow, origin) {
+function preAdapt(iframeEltOrIframeWindow, origin) {
   if(iframeEltOrIframeWindow instanceof HTMLIFrameElement) {
     var iframe = iframeEltOrIframeWindow;
     return parentGetPort(iframe.contentWindow, origin);
@@ -352,8 +353,6 @@ function port(iframeEltOrIframeWindow, origin) {
     return iframeEltOrIframeWindow;
   } 
 }
-
-exports.port = port;
 
 // Coerces a Worker to a Connection
 // Idempotent: Passes Connections through unaltered
