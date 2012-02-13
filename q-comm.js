@@ -56,13 +56,10 @@ exports.Connection = Connection;
 function Connection(connection, local, options) {
     options = options || {};
     connection = preAdapt(connection);
-    if (Q.isPromise(connection)) {
-      return connection.then(function(asPromisedConnection) {
-        return _Connection(asPromisedConnection, local, options);
-      });
-    } else {
-      return _Connection(connection, local, options);
-    }
+   
+    return Q.when(connection, function (connection) {
+        return _Connection(connection, local, options);
+    });
 }
 
 function _Connection(connection, local, options) {
