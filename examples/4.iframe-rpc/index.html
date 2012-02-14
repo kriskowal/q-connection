@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+    <head>
+        <script src="../../../q/q.js"></script>
+        <script src="../../uuid.js"></script>
+        <script src="../../q-comm.js"></script>
+        <script src="../../q-rpc.js"></script>
+    </head>
+    <body>
+        <iframe id="iframe" src="iframe.html"></iframe>
+        <script>
+            /*globals  console Q_COMM Q_RPC window*/
+            var iframe = document.getElementById("iframe");
+
+            // Each eventHandler is a command on the remote side
+            var eventHandlers =  {
+                "hi": function (message) {
+                    console.log("index.html:", message);
+                    return "Hi";
+                }
+            };
+
+            // Each command becomes an event on the remote side.
+            // All return promises for return values
+            var commands = {
+              'hi': function(helloMessage) {
+                debugger;  // we should never get here
+              }
+            };
+
+            var child = Q_RPC.makeStub(iframe, commands, eventHandlers);
+            
+            child.hi("Hello, Child!")
+            .then(function (message) {
+                console.log("index.html:", message);
+            })
+            .end();
+
+        </script>
+    </body>
+</html>
