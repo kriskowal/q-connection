@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+    <head>
+        <script src="../../../q/q.js"></script>
+        <script src="../../uuid.js"></script>
+        <script src="../../q-comm.js"></script>
+    </head>
+    <body>
+        <script>
+        /*globals window Q_COMM console*/
+        
+        // The port will be derived from the window
+        // window.parent would be better, if we can find a way to distinguish
+        // window.parent from iframe.contentWindow
+        
+           var remote = Q_COMM.Connection(window, {
+                "hi": function (message) {
+                    console.log("iframe.html: local ", message);
+                    return "Hi";
+                }
+            }, {
+                origin: '*'
+            });
+
+            remote.invoke("hi", "Hello, Parent!")
+            .then(function (response) {
+                console.log("iframe.html: invoke then ", response);
+            })
+            .end();
+        </script>
+    </body>
+</html>

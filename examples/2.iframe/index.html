@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
     <head>
-        <script src="../../node_modules/q/q.js"></script>
+        <script src="../../../q/q.js"></script>
         <script src="uuid.js"></script>
         <script src="../../q-comm.js"></script>
     </head>
@@ -9,10 +9,9 @@
         <iframe id="iframe" src="iframe.html"></iframe>
         <script>
 
-            var iframe = document.getElementById("iframe")
-            var child = iframe.contentWindow;
+            var iframe = document.getElementById("iframe");
 
-            var remote = Q_COMM.Connection(child, {
+            var remote = Q_COMM.Connection(iframe, {
                 "hi": function (message) {
                     console.log("index.html:", message);
                     return "Hi";

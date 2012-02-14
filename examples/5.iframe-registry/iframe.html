@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+    <head>
+        <script src="../../../q/q.js"></script>
+        <script src="../../uuid.js"></script>
+        <script src="../../q-comm.js"></script>
+        <script src="../../q-rpc.js"></script>
+    </head>
+    <body>
+        <script>
+            /*globals  console Q_COMM window*/
+
+            var remote = Q_COMM.Connection(window, {
+                'child': {
+                    "hi": function (message) {
+                        console.log("iframe.html:", message);
+                        return "Hi";
+                    }
+                }
+            });
+
+            // Bind remote global properties to local reference
+            remote.get('parent').then(
+                function(parent) {
+                    parent.invoke('hi', "Hello, Parent!").then(
+                        function (message) {
+                            console.log("iframe.html:", message);
+                        }
+                    );
+                }
+            ).end();
+
+
+        </script>
+    </body>
+</html>

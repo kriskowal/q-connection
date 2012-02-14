@@ -55,6 +55,15 @@ var has = Object.prototype.hasOwnProperty;
 exports.Connection = Connection;
 function Connection(connection, local, options) {
     options = options || {};
+    connection = preAdapt(connection);
+   
+    return Q.when(connection, function (connection) {
+        return _Connection(connection, local, options);
+    });
+}
+
+function _Connection(connection, local, options) {
+    
     var makeId = options.makeId || function () {
         return UUID.generate();
     };
@@ -76,7 +85,6 @@ function Connection(connection, local, options) {
 
     // message receiver
     function receive(message) {
-        message = JSON.parse(message);
         if (!receivers[message.type])
             return; // ignore bad message types
         if (!locals.has(message.to))
@@ -111,33 +119,33 @@ function Connection(connection, local, options) {
             Q.when(response, function (resolution) {
                 var envelope;
                 try {
-                    envelope = JSON.stringify({
+                    envelope = {
                         "type": "resolve",
                         "to": message.from,
                         "resolution": encode(resolution)
-                    });
+                    };
                 } catch (exception) {
-                    envelope = JSON.stringify({
+                    envelope = {
                         "type": "resolve",
                         "to": message.from,
                         "resolution": null
-                    });
+                    };
                 }
                 connection.put(envelope);
             }, function (reason) {
                 var envelope;
                 try {
-                    envelope = JSON.stringify({
+                    envelope = {
                         "type": "resolve",
                         "to": message.from,
                         "resolution": {"!": encode(reason)}
-                    });
+                    };
                 } catch (exception) {
-                    envelope = JSON.stringify({
+                    envelope = {
                         "type": "resolve",
                         "to": message.from,
                         "resolution": {"!": null}
-                    });
+                    };
                 }
                 connection.put(envelope);
             })
@@ -174,13 +182,13 @@ function Connection(connection, local, options) {
             var response = makeLocal(localId);
             var args = Array.prototype.slice.call(arguments, 1);
             _debug('sending:', "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(args));
-            connection.put(JSON.stringify({
+            connection.put({
                 "type": "send",
                 "to": id,
                 "from": localId,
                 "op": op,
                 "args": encode(args)
-            }));
+            });
             return response;
         });
     }
@@ -251,15 +259,115 @@ function Connection(connection, local, options) {
 
 }
 
+// Called in the iframe
+function iframeGetPort(windowParent, origin) {
+    var port = Q.defer();
+    
+    origin = origin || "*";
+    
+    function sendReadyEvent() {
+        windowParent.postMessage({type: "READY", from: window.location.toString()}, origin);
+    }
+    
+    function awaitPortOrPing(event) {
+        debug(window.location.toString()+" got message event.data.type: "+event.data.type+((event.source !== windowParent)?' not for us':' for us'), event);
+        if (event.source !== windowParent) {
+             return; // not for us
+        } else {
+            // Our correspondant has sent global postMessage. 
+            if (event.data.type == "RU_READY?") {
+                sendReadyEvent();
+            } else if (event.data.type === "PORT") {
+                // Now we are ready for port-to-port communications
+                debug(window.location.toString()+" resolving to event.ports[0]");
+                port.resolve(event.ports[0]);  // this will be port2 from the other side.
+                
+                window.removeEventListener('message', awaitPortOrPing, false);
+            } else {
+                // Our correspondant is mumbling. That won't do.
+                console.error("Q_COMM event data type invalid", event);
+                port.reject({reason: "Q_COMM event data type invalid", event: event});
+            }
+       }
+    }
+
+    // Prepare for messages from 'windowParent'.
+    window.addEventListener('message', awaitPortOrPing, false);
+    
+    // Poke our correspondant and introduce ourselves.
+    sendReadyEvent();
+
+    return port.promise;  
+}
+
+// called in the parent container window
+function parentGetPort(iframeContentWindow, origin) {
+    var port = Q.defer();
+    
+    var channel = new MessageChannel();
+    
+    origin = origin || "*";
+    
+    function awaitIframeReady(event) {
+        debug(window.location.toString()+" got message event.data.type: "+event.data.type+((event.source !== iframeContentWindow)?' not for us':' for us'), event);
+        if (event.source !== iframeContentWindow) {
+             return; // not for us
+        } else {
+            // Our correspondant has sent global postMessage. 
+            if (event.data.type == "READY") {
+                // Ok, leggo
+                iframeContentWindow.postMessage({type: "PORT", from: window.location.toString()}, origin, [channel.port2]);
+                // Now we are ready for port-to-port communications
+                debug(window.location.toString()+" resolving to channel.port1");
+                // Enough, we'll continue on ports.
+                window.removeEventListener('message', awaitIframeReady, false);
+                port.resolve(channel.port1);
+            } else {
+                // Our correspondant is mumbling. That won't do.
+                console.error("Q_COMM event data type invalid", event);
+                port.reject({reason: "Q_COMM event data type invalid", event: event});
+            }
+       }
+    }
+
+    // Prepare for messages from 'hasPostMessage'.
+    window.addEventListener('message', awaitIframeReady, false);
+    
+    // Poke our correspondant.
+    iframeContentWindow.postMessage({type: "RU_READY?", from: window.location.toString()}, origin);
+
+    return port.promise;  
+}
+
+function preAdapt(iframeEltOrIframeWindow, origin) {
+  if(iframeEltOrIframeWindow instanceof HTMLIFrameElement) {
+    var iframe = iframeEltOrIframeWindow;
+    return parentGetPort(iframe.contentWindow, origin);
+  } else if (iframeEltOrIframeWindow && iframeEltOrIframeWindow.setTimeout) {
+    var win = iframeEltOrIframeWindow;
+    return iframeGetPort(win.parent, origin);
+  } else {
+    return iframeEltOrIframeWindow;
+  } 
+}
+
 // Coerces a Worker to a Connection
 // Idempotent: Passes Connections through unaltered
 function adapt(port, origin) {
     if (port.postMessage) {
         // MessagePorts
-        send = function (message) {
-            // some message ports require an "origin"
-            port.postMessage(message, origin);
-        };
+        if (port instanceof MessagePort) {
+            send = function (message) {
+                // Message Port second arg is transfer not origin :-(
+                port.postMessage(message);
+            };
+        } else {
+            // XXXjjb I don't know what this case is about
+            send = function (message) {
+                // some message ports require an "origin"
+                port.postMessage(message, origin);
+            };
+        }
     } else if (port.send) {
         // WebSockets have a "send" method, indicating
         // that we cannot send until the connection has
@@ -286,15 +394,16 @@ function adapt(port, origin) {
     port.start && port.start();
     // onmessage is one thing common between WebSocket and
     // WebWorker message ports.
+    // XXXjjb: MessagePorts also have onmessage: http://www.whatwg.org/specs/web-apps/current-work/multipage/web-messaging.html#messageport
     var queue = Queue();
-    if (port.addEventListener) {
-        port.addEventListener("message", function (event) {
-            queue.put(event.data);
-        }, false);
-    } else {
+    if (port.hasOwnProperty('onmessage')) {  // null until set
         port.onmessage = function (event) {
             queue.put(event.data);
         };
+    } else {
+        port.addEventListener("message", function (event) {
+            queue.put(event.data);
+        }, false);
     }
     var close = function () {
         port.close && port.close();
