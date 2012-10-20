@@ -1,43 +1,7 @@
-// vim:ts=4:sts=4:sw=4:
-// This module can be loaded as a RequireJS module, a CommonJS module, or
-// a browser script.  As a script, it creates a "Q_COMM" global name space
-// and requires "Q" and "UUID" to already exist.  As a RequireJS module,
-// it requires the "Q" package to be installed in the parent directory.
-(function (definition) {
-    var global = this;
-
-    // RequireJS
-    if (typeof define === "function") {
-        define(["../q/q", "./uuid"], function (Q, UUID) {
-            var exports = {};
-            var imports = {"q": Q, "./uuid": UUID};
-            definition(
-                function (id) {
-                    return imports[id];
-                },
-                exports
-            );
-            return exports;
-        });
-
-    // CommonJS
-    } else if (typeof exports === "object") {
-        definition(require, exports);
-
-    // <script>
-    } else {
-        var imports = {"q": Q, "./uuid": UUID};
-        definition(
-            function (id) {
-                return imports[id];
-            },
-            Q_COMM = {}
-        );
-    }
-
-})(function (require, exports) {
 
 var Q = require("q");
+var LruMap = require("collections/lru-map");
+var Queue = require("./queue");
 var UUID = require("./uuid");
 
 function debug() {
@@ -52,13 +16,13 @@ var has = Object.prototype.hasOwnProperty;
  * @param connection
  * @param local
  */
-exports.Connection = Connection;
+module.exports = Connection;
 function Connection(connection, local, options) {
     options = options || {};
     var makeId = options.makeId || function () {
         return UUID.generate();
     };
-    var locals = Lru(options.max || Infinity);
+    var locals = LruMap(null, options.max || Infinity);
     connection = adapt(connection, options.origin);
 
     var debugKey = Math.random().toString(16).slice(2, 4).toUpperCase() + ":";
@@ -98,10 +62,7 @@ function Connection(connection, local, options) {
             // forward the message to the local promise,
             // which will return a response promise
             var local = locals.get(message.to).promise;
-            var response = Q.send.apply(
-                void 0,
-                [local, message.op].concat(decode(message.args))
-            );
+            var response = Q.dispatch(local, message.op, decode(message.args));
 
             // connect the local response promise with the
             // remote response promise:
@@ -169,6 +130,9 @@ function Connection(connection, local, options) {
     // remote object.
     function makeRemote(id) {
         return Q.makePromise({
+            when: function () {
+                return this;
+            }
         }, function (op) {
             var localId = makeId();
             var response = makeLocal(localId);
@@ -310,118 +274,3 @@ function adapt(port, origin) {
     };
 }
 
-exports.Queue = Queue;
-function Queue() {
-    var ends = Q.defer();
-    var closed = Q.defer();
-    return {
-        "put": function (value) {
-            var next = Q.defer();
-            ends.resolve({
-                "head": value,
-                "tail": next.promise
-            });
-            ends.resolve = next.resolve;
-        },
-        "get": function () {
-            var result = ends.promise.get("head");
-            ends.promise = ends.promise.get("tail");
-            return result.fail(function (reason) {
-                closed.resolve();
-                return Q.reject(reason);
-            });
-        },
-        "closed": closed.promise,
-        "close": function (reason) {
-            var end = {"head": Q.reject(reason)};
-            end.tail = end;
-            ends.resolve(end);
-            return closed.promise;
-        }
-    };
-}
-
-// Least recently used. Caches up to maximum number of key: value pairs.
-// Has a similar API to WeakMap, but avoids leaking by dropping, which
-// will lead to broken promises on the remote side
-var hasOwn = Object.prototype.hasOwnProperty;
-function Lru(maxLength) {
-    if (!maxLength)
-        throw new Error("LRU cache must be constructed with a maximum length.");
-    var map = {};
-    var length = 0;
-
-    var head = {};
-    head.next = head;
-    head.prev = head;
-    function remove(node) {
-        delete map[node.key];
-        node.prev.next = node.next;
-        node.next.prev = node.prev;
-        length--;
-    }
-    function insert(node) {
-        map[node.key] = node;
-        var prev = head.prev;
-        head.prev = node;
-        node.prev = prev;
-        prev.next = node;
-        node.next = head;
-        length++;
-        if (length > maxLength)
-            remove(head.next);
-    }
-
-    function get(key) {
-        if (!hasOwn.call(map, key))
-            throw new ValueError("LRU cache does not contain that key.");
-        var node = map[key];
-        remove(node);
-        insert(node);
-        return node.value;
-    }
-    function set(key, value) {
-        var node;
-        if (map[key]) {
-            node = map[key];
-            node.value = value;
-            remove(node);
-        } else {
-            node = {};
-            node.key = key;
-            node.value = value;
-        }
-        insert(node);
-    }
-    function del(key) {
-        var node = map[key];
-        delete map[key];
-        remove(node);
-    }
-    function has(key) {
-        return hasOwn.call(map, key);
-    }
-
-    function toSource() {
-        return '[LRU ' + length + ' ' +
-            Object.keys(map).map(function (key) {
-                var node = map[key];
-                return (
-                    (node.prev.key || '@') +
-                    '<-' + key + ':' + node.value + '->' +
-                    (node.next.key || '@')
-                );
-            }).join(' ') + ']';
-    }
-
-    return {
-        "get": get,
-        "set": set,
-        "delete": del,
-        "has": has,
-        "toSource": toSource,
-        "toString": toString
-    }
-}
-
-});

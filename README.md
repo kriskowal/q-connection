@@ -8,19 +8,20 @@ asynchronously between memory-isolated JavaScript contexts,
 including pipelining interactions with results.  Promises
 serve as proxies for remote objects.
 
-Q-Comm works in Node, in browsers with script tags or with
-with CommonJS or RequireJS module loaders.  It builds on the
-[Q][] promise system and can interoperate with other
-CommonJS promises including jQuery’s ``$.ajax`` promises.
+Q-Comm works in Node and other CommonJS module loaders like
+[Browserify][], [Mr][], and [Montage][].
 
 [Q]: https://github.com/kriskowal/q
+[Browserify]: https://github.com/substack/node-browserify
+[Mr]: https://github.com/kriskowal/mr
+[Montage]: https://github.com/montagejs/montage
 
 This is how it looks:
 
 ```javascript
-var Q = require("q"); // or include the <script>
-var Q_COMM = require("q-comm"); // or include the <script>
-var remote = Q_COMM.Connection(port, local);
+var Q = require("q");
+var Connection = require("q-comm");
+var remote = Connection(port, local);
 ```
 
 The ``remote`` object is a promise for the ``local`` object
@@ -46,33 +47,33 @@ unified API, but Q-Comm will normalize them internally.
 ```javascript
 // To communicate with objects in a worker
 var worker = new Worker("worker.js");
-var child = Q_COMM.Connection(worker, local);
+var child = Connection(worker, local);
 ```
 
 ```javascript
 // Inside a worker, to communicate with the parent
-var parent = Q_COMM.Connection(this);
+var parent = Connection(this);
 ```
 
 ```javascript
 // To communicate with a remote object on the other side of
 // a web socket
 var socket = new WebSocket("ws://example.com");
-var remote = Q_COMM.Connection(socket, local);
+var remote = Connection(socket, local);
 ```
 
 ```javascript
 // To communicate with a single frame on the same origin
 // (multiple frames will require some handshaking event sources)
 var iframe = document.frames[0];
-var child = Q_COMM.Connection(iframe.contentWindow, local, {
+var child = Connection(iframe.contentWindow, local, {
     origin: window.location.origin
 })
 ```
 
 ```javascript
 // To communicate with a parent frame on the same origin
-var child = Q_COMM.Connection(window, local, {
+var child = Connection(window, local, {
     origin: window.location.origin
 })
 ```
@@ -80,8 +81,8 @@ var child = Q_COMM.Connection(window, local, {
 ```javascript
 // With a message port
 var port = new MessagePort();
-var near = Q_COMM.Connection(port[0]);
-var far = Q_COMM.Connection(port[1]);
+var near = Connection(port[0]);
+var far = Connection(port[1]);
 ```
 
 Your ``local`` value can be any JavaScript value, but it is
@@ -129,10 +130,8 @@ value.foo = value          promise.put("foo", value)
 delete value.foo           promise.del("foo")
 value.foo(...args)         promise.post("foo", [args])
 value.foo(...args)         promise.invoke("foo", ...args)
-value(...args)             promise.apply(null, [args])
-value(...args)             promise.call(null, ...args)
-value.call(thisp, ...args) promise.apply(thisp, [args])
-value.apply(thisp, [args]) promise.call(thisp, ...args)
+value(...args)             promise.fapply([args])
+value(...args)             promise.fcall(...args)
 ```
 
 All of the asynchronous functions return promises for the
@@ -274,7 +273,7 @@ around indefinitely.  This can be trimmed to something reasonable with
 the ``max`` option.
 
 ```javascript
-var remote = Q_COMM.Connection(port, local, {max: 1024});
+var remote = Connection(port, local, {max: 1024});
 ```
 
 The least frequently used promises will be collected.  If the remote

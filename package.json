@@ -1,6 +1,6 @@
 {
     "name": "q-comm",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "description": "An inter-worker asynchronous promise communication system.",
     "homepage": "http://github.com/kriskowal/q-comm/",
     "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
@@ -23,7 +23,8 @@
     ],
     "main": "q-comm.js",
     "dependencies": {
-        "q": "0.8.2"
+        "q": "0.8.x",
+        "collections": "0.0.x"
     },
     "devDependencies": {
         "test": ">=0.1.0",

@@ -22,7 +22,7 @@ exports['test invoke/post atom'] = function (assert, done) {
 
 exports['test get atom'] = function (assert, done) {
     var peers = utils.createPeers({ foo: 'some value' });
-    
+
     Q.when(Q.get(peers.remote, 'foo'), function(value) {
         assert.equal(value, peers.object.foo, 'value mathches actual value');
         done();
@@ -65,7 +65,7 @@ exports['test call'] = function (assert, done) {
         ok = true;
         return 'Okay';
     });
-    peers.remote.call().then(function (result) {
+    peers.remote.fcall().then(function (result) {
         assert.equal(result, 'Okay', 'result of remote function call');
     }, function (reason) {
         assert.ok(false, 'no error');
@@ -75,23 +75,22 @@ exports['test call'] = function (assert, done) {
 
 exports['test remote function resolved locally'] = function (assert, done) {
     var ok;
-    var peers = utils.createPeers(function () {
+    var peers = utils.createPeers(Q.master(function () {
         ok = true;
         return 'Okay';
-    });
+    }));
     peers.remote.then(function (remote) {
         assert.ok(true, 'got here');
-        return remote().then(function (result) {
+        return remote.fcall().then(function (result) {
             assert.equal(result, 'Okay', 'result of remote function call');
         });
     })
-    .then(function (value) {
+    .catch(function (error) {
+        assert.ok(false, 'no error: ' + error.message);
     })
-    .fail(function () {
-        assert.ok(false, 'no error');
-    })
-    .fin(done);
+    .finally(done);
 };
 
 if (module == require.main)
     require('test').run(exports)
+
