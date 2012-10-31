@@ -1,8 +1,8 @@
 
 var Q = require("q");
 var LruMap = require("collections/lru-map");
-var Queue = require("./queue");
-var UUID = require("./uuid");
+var Queue = require("./lib/queue");
+var UUID = require("./lib/uuid");
 
 function debug() {
     //typeof console !== "undefined" && console.log.apply(console, arguments);
@@ -70,36 +70,36 @@ function Connection(connection, local, options) {
             // if the value is ever resolved, send the
             // fulfilled value across the wire
             Q.when(response, function (resolution) {
-                var envelope;
                 try {
-                    envelope = JSON.stringify({
-                        "type": "resolve",
-                        "to": message.from,
-                        "resolution": encode(resolution)
-                    });
+                    resolution = encode(resolution);
                 } catch (exception) {
-                    envelope = JSON.stringify({
-                        "type": "resolve",
-                        "to": message.from,
-                        "resolution": null
-                    });
+                    try {
+                        resolution = {"!": encode(exception)};
+                    } catch (exception) {
+                        resolution = {"!": null};
+                    }
                 }
+                var envelope = JSON.stringify({
+                    "type": "resolve",
+                    "to": message.from,
+                    "resolution": resolution
+                });
                 connection.put(envelope);
             }, function (reason) {
-                var envelope;
                 try {
-                    envelope = JSON.stringify({
-                        "type": "resolve",
-                        "to": message.from,
-                        "resolution": {"!": encode(reason)}
-                    });
+                    reason = encode(reason);
                 } catch (exception) {
-                    envelope = JSON.stringify({
-                        "type": "resolve",
-                        "to": message.from,
-                        "resolution": {"!": null}
-                    });
+                    try {
+                        reason = encode(exception);
+                    } catch (exception) {
+                        reason = null;
+                    }
                 }
+                envelope = JSON.stringify({
+                    "type": "resolve",
+                    "to": message.from,
+                    "resolution": {"!": reason}
+                })
                 connection.put(envelope);
             })
             .end();
@@ -218,6 +218,9 @@ function Connection(connection, local, options) {
 // Coerces a Worker to a Connection
 // Idempotent: Passes Connections through unaltered
 function adapt(port, origin) {
+
+    // Adapt the sender side
+    // ---------------------
     if (port.postMessage) {
         // MessagePorts
         send = function (message) {
@@ -233,25 +236,33 @@ function adapt(port, origin) {
         // before it opens.
         var deferred = Q.defer();
         send = deferred.promise;
-        port.addEventListener("open", function () {
+        if (port.on) {
             deferred.resolve(port.send);
-        });
-        port.addEventListener("close", function () {
-            queue.close();
-            deferred.reject("Connection closed.");
-        });
+        } else if (port.addEventListener) {
+            port.addEventListener("open", function () {
+                deferred.resolve(port.send);
+            });
+            port.addEventListener("close", function () {
+                queue.close();
+                deferred.reject("Connection closed.");
+            });
+        }
     } else if (port.get && port.put) {
         return port;
     } else {
         throw new Error("An adaptable message port required");
     }
-    // Message ports have a start method; call it to make sure
-    // that messages get sent.
-    port.start && port.start();
+
+    // Adapt the receiver side
+    // -----------------------
     // onmessage is one thing common between WebSocket and
     // WebWorker message ports.
     var queue = Queue();
-    if (port.addEventListener) {
+    if (port.on) {
+        port.on("message", function (data) {
+            queue.put(data);
+        }, false);
+    } else if (port.addEventListener) {
         port.addEventListener("message", function (event) {
             queue.put(event.data);
         }, false);
@@ -260,10 +271,18 @@ function adapt(port, origin) {
             queue.put(event.data);
         };
     }
+
+    // Message ports have a start method; call it to make sure
+    // that messages get sent.
+    if (port.start) {
+        port.start();
+    }
+
     var close = function () {
         port.close && port.close();
         return queue.close();
     };
+
     return {
         "get": queue.get,
         "put": function (message) {
