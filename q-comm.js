@@ -31,10 +31,10 @@ function Connection(connection, local, options) {
     }
 
     // message reciever loop
-    Q.when(connection.get(), get).end();
+    Q.when(connection.get(), get).done();
     function get(message) {
         _debug("receive:", message);
-        Q.when(connection.get(), get).end();
+        Q.when(connection.get(), get).done();
         receive(message);
     }
 
@@ -102,7 +102,7 @@ function Connection(connection, local, options) {
                 })
                 connection.put(envelope);
             })
-            .end();
+            .done();
 
         }
     }
