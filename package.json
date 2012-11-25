@@ -1,8 +1,8 @@
 {
-    "name": "q-comm",
+    "name": "q-connection",
     "version": "0.4.2",
     "description": "An inter-worker asynchronous promise communication system.",
-    "homepage": "http://github.com/kriskowal/q-comm/",
+    "homepage": "http://github.com/kriskowal/q-connection/",
     "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
     "contributors": [
         "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
@@ -13,17 +13,17 @@
     ],
     "bugs": {
         "mail": "kris@cixar.com",
-        "url": "http://github.com/kriskowal/q-comm/issues"
+        "url": "http://github.com/kriskowal/q-connection/issues"
     },
     "licenses": [
         {
             "type": "MIT",
-            "url": "http://github.com/kriskowal/q-comm/raw/master/LICENSE"
+            "url": "http://github.com/kriskowal/q-connection/raw/master/LICENSE"
         }
     ],
-    "main": "q-comm.js",
+    "main": "q-connection.js",
     "dependencies": {
-        "q": "0.8.x >=0.8.10",
+        "q": "0.8.x >=0.8.11",
         "collections": "0.0.x"
     },
     "devDependencies": {
@@ -35,7 +35,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git://github.com/kriskowal/q-comm.git"
+        "url": "git://github.com/kriskowal/q-connection.git"
     },
     "engines": {
         "node": ">=0.2.0",

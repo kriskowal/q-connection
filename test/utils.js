@@ -2,9 +2,9 @@
 
 var EventEmitter = require("events").EventEmitter;
 var enqueue = require("event-queue").enqueue;
-var Connection = require("../q-comm");
-var Queue = require("../lib/queue");
+var Connection = require("../q-connection");
 var Q = require("q");
+var Queue = require("q/queue");
 
 
 function defineSend(source, target) {

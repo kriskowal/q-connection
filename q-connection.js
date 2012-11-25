@@ -1,7 +1,7 @@
 
 var Q = require("q");
+var Queue = require("q/queue");
 var LruMap = require("collections/lru-map");
-var Queue = require("./lib/queue");
 var UUID = require("./lib/uuid");
 
 function debug() {
