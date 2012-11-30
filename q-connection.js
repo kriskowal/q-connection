@@ -1,4 +1,3 @@
-
 var Q = require("q");
 var Queue = require("q/queue");
 var LruMap = require("collections/lru-map");
@@ -218,7 +217,7 @@ function Connection(connection, local, options) {
 // Coerces a Worker to a Connection
 // Idempotent: Passes Connections through unaltered
 function adapt(port, origin) {
-
+    var send;
     // Adapt the sender side
     // ---------------------
     if (port.postMessage) {
