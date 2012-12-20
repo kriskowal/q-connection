@@ -1,4 +1,6 @@
 
+var Q = require("q");
+
 // Coerces a Worker to a Connection
 // Idempotent: Passes Connections through unaltered
 module.exports = adapt;
