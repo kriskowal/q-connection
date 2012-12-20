@@ -121,7 +121,7 @@ function Connection(connection, local, options) {
     // a utility for resolving the local promise
     // for a given identifier.
     function resolveLocal(id, value) {
-        _debug('resolve:', "L" + JSON.stringify(id), JSON.stringify(value));
+        _debug('resolve:', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
         locals.get(id).resolve(value);
     }
 
@@ -136,7 +136,7 @@ function Connection(connection, local, options) {
             var localId = makeId();
             var response = makeLocal(localId);
             var args = Array.prototype.slice.call(arguments, 1);
-            _debug('sending:', "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(args));
+            _debug('sending:', "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
             connection.put(JSON.stringify({
                 "type": "send",
                 "to": id,
@@ -152,11 +152,16 @@ function Connection(connection, local, options) {
     // that JSON.stringify on the result will produce
     // "QSON": serialized promise objects.
     function encode(object) {
-        if (Q.isPromise(object)) {
+        if (Q.isPromise(object) || typeof object === "function") {
             var id = makeId();
             makeLocal(id);
             resolveLocal(id, object);
-            return {"@": id};
+            return {"@": id, "type": typeof object};
+        } else if (object instanceof Error) {
+            return {
+                message: object.message,
+                stack: object.stack
+            };
         } else if (Array.isArray(object)) {
             return object.map(encode);
         } else if (typeof object === "object") {
@@ -182,7 +187,14 @@ function Connection(connection, local, options) {
         } else if (object['!']) {
             return Q.reject(object['!']);
         } else if (object['@']) {
-            return makeRemote(object['@']);
+            var remote = makeRemote(object["@"]);
+            if (object.type === "function") {
+                return function () {
+                    return fapply(remote, arguments);
+                };
+            } else {
+                return remote;
+            }
         } else if (Array.isArray(object)) {
             return object.map(decode);
         } else if (typeof object === 'object') {
