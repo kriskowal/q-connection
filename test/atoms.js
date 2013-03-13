@@ -32,10 +32,10 @@ exports['test get atom'] = function (assert, done) {
     });
 }
 
-exports['test put atom'] = function (assert, done) {
+exports['test set atom'] = function (assert, done) {
     var peers = utils.createPeers({});
 
-    Q.when(Q.put(peers.remote, 'foo', 'bar'), function(value) {
+    Q.when(Q.set(peers.remote, 'foo', 'bar'), function(value) {
         assert.equal(peers.object.foo, 'bar', 'value of target has changed');
     });
     Q.when(Q.get(peers.remote, 'foo'), function(value) {

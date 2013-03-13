@@ -1,6 +1,6 @@
 {
   "name": "q-connection",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "An inter-worker asynchronous promise communication system.",
   "homepage": "http://github.com/kriskowal/q-connection/",
   "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
@@ -23,7 +23,7 @@
   ],
   "main": "q-connection.js",
   "dependencies": {
-    "q": "~0.8.11",
+    "q": "~0.9.2",
     "collections": "~0.0.0"
   },
   "devDependencies": {

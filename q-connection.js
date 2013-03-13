@@ -30,7 +30,7 @@ function Connection(connection, local, options) {
         debug.apply(null, [debugKey].concat(Array.prototype.slice.call(arguments)));
     }
 
-    // message reciever loop
+    // message receiver loop
     Q.when(connection.get(), get).done();
     function get(message) {
         _debug("receive:", message);
@@ -41,6 +41,8 @@ function Connection(connection, local, options) {
     // message receiver
     function receive(message) {
         message = JSON.parse(message);
+        _debug("receive: parsed message", message);
+ 
         if (!receivers[message.type])
             return; // ignore bad message types
         if (!locals.has(message.to))
@@ -137,7 +139,10 @@ function Connection(connection, local, options) {
             var localId = makeId();
             var response = makeLocal(localId);
             var args = Array.prototype.slice.call(arguments, 1);
-            _debug('sending:', "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
+            if (Array.isArray(args[0])) {
+                args = args[0];
+            }
+             _debug('sending:', "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
             connection.put(JSON.stringify({
                 "type": "send",
                 "to": id,
