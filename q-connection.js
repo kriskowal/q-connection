@@ -42,7 +42,7 @@ function Connection(connection, local, options) {
     function receive(message) {
         message = JSON.parse(message);
         _debug("receive: parsed message", message);
- 
+
         if (!receivers[message.type])
             return; // ignore bad message types
         if (!locals.has(message.to))
@@ -135,13 +135,9 @@ function Connection(connection, local, options) {
             when: function () {
                 return this;
             }
-        }, function (op) {
+        }, function (op, args) {
             var localId = makeId();
             var response = makeLocal(localId);
-            var args = Array.prototype.slice.call(arguments, 1);
-            if (Array.isArray(args[0])) {
-                args = args[0];
-            }
              _debug('sending:', "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
             connection.put(JSON.stringify({
                 "type": "send",
