@@ -192,7 +192,7 @@ function Connection(connection, local, options) {
             var remote = makeRemote(object["@"]);
             if (object.type === "function") {
                 return function () {
-                    return Q.fapply(remote, arguments);
+                    return Q.fapply(remote, Array.prototype.slice.call(arguments));
                 };
             } else {
                 return remote;

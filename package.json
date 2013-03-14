@@ -27,11 +27,13 @@
     "collections": "~0.0.0"
   },
   "devDependencies": {
-    "test": "~0.1.0",
-    "event-queue": "~0.1.0"
+    "jasmine-node": "*",
+    "cover": "*",
+    "opener": "*"
   },
   "scripts": {
-    "test": "node test/all.js"
+    "test": "node_modules/.bin/jasmine-node spec",
+    "cover": "cover run node_modules/jasmine-node/bin/jasmine-node spec && cover report html && opener cover_html/index.html"
   },
   "repository": {
     "type": "git",
