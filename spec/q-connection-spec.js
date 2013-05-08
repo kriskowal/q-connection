@@ -203,3 +203,53 @@ describe("rejection", function () {
     });
 });
 
+describe("serialization", function () {
+
+    it("should serialize null", function () {
+        var peers = makePeers({
+            respond: function (value) {
+                return value === null;
+            }
+        });
+        return peers.remote.invoke("respond", null)
+        .then(function (result) {
+            expect(result).toBe(true);
+        })
+    });
+
+    it("should serialize undefined", function () {
+        var peers = makePeers({
+            respond: function (value) {
+                return value === undefined;
+            }
+        });
+        return peers.remote.invoke("respond", undefined)
+        .then(function (result) {
+            expect(result).toBe(true);
+        })
+    });
+
+    it("should serialize special key names", function () {
+        var reference = {
+            "@": 1,
+            "@@": 2,
+            "!": 3,
+            "!!": 4,
+            "%": 5,
+            "%%": 6,
+            "\\@": 7,
+            "\\": 8
+        };
+        var peers = makePeers({
+            respond: function (value) {
+                return reference;
+            }
+        });
+        return peers.remote.invoke("respond")
+        .then(function (response) {
+            expect(response).toEqual(reference);
+        });
+    });
+
+});
+

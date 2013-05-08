@@ -154,7 +154,11 @@ function Connection(connection, local, options) {
     // that JSON.stringify on the result will produce
     // "QSON": serialized promise objects.
     function encode(object) {
-        if (Q.isPromise(object) || typeof object === "function") {
+        if (object === undefined) {
+            return {"%": "undefined"};
+        } else if (Object(object) !== object) {
+            return object;
+        } if (Q.isPromise(object) || typeof object === "function") {
             var id = makeId();
             makeLocal(id);
             resolveLocal(id, object);
@@ -170,9 +174,9 @@ function Connection(connection, local, options) {
             var result = {};
             for (var key in object) {
                 if (has.call(object, key)) {
-                    var newKey = key;
-                    if (/^[!@]$/.exec(key))
-                        newKey = key + key;
+                    var newKey = key.replace(/[@!%\\]/, function ($0) {
+                        return "\\" + $0;
+                    });
                     result[newKey] = encode(object[key]);
                 }
             }
@@ -184,8 +188,14 @@ function Connection(connection, local, options) {
 
     // decodes QSON
     function decode(object) {
-        if (!object) {
+        if (Object(object) !== object) {
             return object;
+        } else if (object['%']) {
+            if (object["%"] === "undefined") {
+                return undefined;
+            } else {
+                return Q.reject(new TypeError("Unrecognized type: " + object["%"]));
+            }
         } else if (object['!']) {
             return Q.reject(object['!']);
         } else if (object['@']) {
@@ -199,19 +209,17 @@ function Connection(connection, local, options) {
             }
         } else if (Array.isArray(object)) {
             return object.map(decode);
-        } else if (typeof object === 'object') {
+        } else {
             var newObject = {};
             for (var key in object) {
                 if (has.call(object, key)) {
-                    var newKey = key;
-                    if (/^[!@]+$/.exec(key))
-                        newKey = key.substring(1);
+                    var newKey = key.replace(/\\([\\!@%])/, function ($0, $1) {
+                        return $1;
+                    });
                     newObject[newKey] = decode(object[key]);
                 }
             }
             return newObject;
-        } else {
-            return object;
         }
     }
 
