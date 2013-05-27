@@ -20,7 +20,7 @@ This is how it looks:
 
 ```javascript
 var Q = require("q");
-var Connection = require("q-comm");
+var Connection = require("q-connection");
 var remote = Connection(port, local);
 ```
 
