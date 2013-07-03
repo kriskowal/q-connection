@@ -186,6 +186,31 @@ describe("remote promises that fulfill to functions", function () {
     });
 });
 
+describe("remote promises that notify progress", function () {
+    it("should trigger local progress handler", function () {
+        var peers = makePeers({
+            resolveAfterNotify: function (times) {
+                var deferred = Q.defer();
+                var count = 0;
+                setTimeout(function () {
+                    while (count++ < times) {
+                        deferred.notify('Notify' + count + ' time');
+                    }
+                    deferred.resolve('Resolving');
+                }, 0);
+                return deferred.promise;
+            }
+        });
+
+        var notifyCount = 0;
+        return peers.remote.invoke('resolveAfterNotify', 3).progress(function(p) {
+            notifyCount++;
+        }).then(function (message) {
+            expect(notifyCount).toBe(3);
+        });
+    });
+});
+
 describe("rejection", function () {
     it("should become local functions", function () {
         var peers = makePeers({
