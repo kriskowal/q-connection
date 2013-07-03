@@ -54,7 +54,12 @@ function Connection(connection, local, options) {
     var receivers = {
         "resolve": function (message) {
             if (locals.has(message.to)) {
-                resolveLocal(message.to, decode(message.resolution));
+                resolveLocal(message.to, 'resolve', decode(message.resolution));
+            }
+        },
+        "notify": function (message) {
+            if (locals.has(message.to)) {
+                resolveLocal(message.to, 'notify', decode(message.resolution));
             }
         },
         // a "send" message forwards messages from a remote
@@ -65,6 +70,7 @@ function Connection(connection, local, options) {
             // which will return a response promise
             var local = locals.get(message.to).promise;
             var response = Q.dispatch(local, message.op, decode(message.args));
+            var envelope;
 
             // connect the local response promise with the
             // remote response promise:
@@ -81,7 +87,7 @@ function Connection(connection, local, options) {
                         resolution = {"!": null};
                     }
                 }
-                var envelope = JSON.stringify({
+                envelope = JSON.stringify({
                     "type": "resolve",
                     "to": message.from,
                     "resolution": resolution
@@ -103,6 +109,27 @@ function Connection(connection, local, options) {
                     "resolution": {"!": reason}
                 })
                 connection.put(envelope);
+            }, function (progress) {
+                try {
+                    progress = encode(progress);
+                    envelope = JSON.stringify({
+                        "type": "notify",
+                        "to": message.from,
+                        "resolution": progress
+                    });
+                } catch (exception) {
+                    try {
+                        progress = {"!": encode(exception)};
+                    } catch (exception) {
+                        progress = {"!": null};
+                    }
+                    envelope = JSON.stringify({
+                        "type": "resolve",
+                        "to": message.from,
+                        "resolution": progress
+                    });
+                }
+                connection.put(envelope);
             })
             .done();
 
@@ -123,9 +150,9 @@ function Connection(connection, local, options) {
 
     // a utility for resolving the local promise
     // for a given identifier.
-    function resolveLocal(id, value) {
-        _debug('resolve:', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
-        locals.get(id).resolve(value);
+    function resolveLocal(id, op, value) {
+        _debug(op + ':', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
+        locals.get(id)[op](value);
     }
 
     // makes a promise that will send all of its events to a
@@ -161,7 +188,7 @@ function Connection(connection, local, options) {
         } if (Q.isPromise(object) || typeof object === "function") {
             var id = makeId();
             makeLocal(id);
-            resolveLocal(id, object);
+            resolveLocal(id, 'resolve', object);
             return {"@": id, "type": typeof object};
         } else if (object instanceof Error) {
             return {
@@ -231,7 +258,7 @@ function Connection(connection, local, options) {
     // the root object is an empty-string by convention.
     // All other identifiers are numbers.
     makeLocal(rootId);
-    resolveLocal(rootId, local);
+    resolveLocal(rootId, 'resolve', local);
     return makeRemote(rootId);
 
 }
