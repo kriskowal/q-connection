@@ -31,10 +31,10 @@ function Connection(connection, local, options) {
     }
 
     // message receiver loop
-    Q.when(connection.get(), get).done();
+    connection.get().then(get).done();
     function get(message) {
         _debug("receive:", message);
-        Q.when(connection.get(), get).done();
+        connection.get().then(get).done();
         receive(message);
     }
 
@@ -54,12 +54,12 @@ function Connection(connection, local, options) {
     var receivers = {
         "resolve": function (message) {
             if (locals.has(message.to)) {
-                resolveLocal(message.to, 'resolve', decode(message.resolution));
+                dispatchLocal(message.to, 'resolve', decode(message.resolution));
             }
         },
         "notify": function (message) {
             if (locals.has(message.to)) {
-                resolveLocal(message.to, 'notify', decode(message.resolution));
+                dispatchLocal(message.to, 'notify', decode(message.resolution));
             }
         },
         // a "send" message forwards messages from a remote
@@ -69,7 +69,7 @@ function Connection(connection, local, options) {
             // forward the message to the local promise,
             // which will return a response promise
             var local = locals.get(message.to).promise;
-            var response = Q.dispatch(local, message.op, decode(message.args));
+            var response = local.dispatch(message.op, decode(message.args));
             var envelope;
 
             // connect the local response promise with the
@@ -77,7 +77,7 @@ function Connection(connection, local, options) {
 
             // if the value is ever resolved, send the
             // fulfilled value across the wire
-            Q.when(response, function (resolution) {
+            response.then(function (resolution) {
                 try {
                     resolution = encode(resolution);
                 } catch (exception) {
@@ -150,7 +150,7 @@ function Connection(connection, local, options) {
 
     // a utility for resolving the local promise
     // for a given identifier.
-    function resolveLocal(id, op, value) {
+    function dispatchLocal(id, op, value) {
         _debug(op + ':', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
         locals.get(id)[op](value);
     }
@@ -188,7 +188,7 @@ function Connection(connection, local, options) {
         } if (Q.isPromise(object) || typeof object === "function") {
             var id = makeId();
             makeLocal(id);
-            resolveLocal(id, 'resolve', object);
+            dispatchLocal(id, 'resolve', object);
             return {"@": id, "type": typeof object};
         } else if (object instanceof Error) {
             return {
@@ -258,7 +258,7 @@ function Connection(connection, local, options) {
     // the root object is an empty-string by convention.
     // All other identifiers are numbers.
     makeLocal(rootId);
-    resolveLocal(rootId, 'resolve', local);
+    dispatchLocal(rootId, 'resolve', local);
     return makeRemote(rootId);
 
 }
