@@ -218,6 +218,21 @@ connection.on("message", function (data) {
 var remote = Connection(port, local);
 ```
 
+Here's an example showing adapting `socket.io` to the message port. 
+
+```javascript
+var port = {
+  postMessage: function (message) {
+    socket.emit("message", message);
+  },
+  onmessage: null // gets filled in by Q-Comm
+};
+socket.on("message", function(data) {
+  port.onmessage({data: data});
+});
+var remote = Connection(port, local);
+```
+
 ## Q Channels
 
 -   ``get()`` returns a promise for the next message from the other
