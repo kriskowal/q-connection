@@ -27,13 +27,42 @@
     "collections": "~0.0.0"
   },
   "devDependencies": {
-    "jasmine-node": "*",
+    "jasmine-node": "~1.7.0",
     "cover": "*",
-    "opener": "*"
+    "opener": "*",
+    "mocha": "~1.11.0",
+    "mocha-as-promised": "~1.4.0"
   },
   "scripts": {
-    "test": "node_modules/.bin/jasmine-node spec",
-    "cover": "cover run node_modules/jasmine-node/bin/jasmine-node spec && cover report html && opener cover_html/index.html"
+    "test": "jasmine-node spec",
+    "mocha": "mocha test",
+    "cover": "cover run jasmine-node spec && cover report html && opener cover_html/index.html"
+  },
+  "testling": {
+    "harness": "mocha",
+    "files": "test/*-test.js",
+    "browsers": [
+      "iexplore/6.0",
+      "iexplore/7.0",
+      "iexplore/8.0",
+      "iexplore/9.0",
+      "iexplore/10.0",
+      "chrome/25.0",
+      "firefox/19.0",
+      "firefox/nightly",
+      "opera/11.5",
+      "opera/11.6",
+      "opera/12.0",
+      "opera/next",
+      "safari/4.0",
+      "safari/5.0.5",
+      "safari/5.1",
+      "safari/6.0",
+      "chrome/canary",
+      "iphone/6.0",
+      "ipad/6.0",
+      "android-browser/4.2"
+    ]
   },
   "repository": {
     "type": "git",
