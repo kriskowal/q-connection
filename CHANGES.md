@@ -1,5 +1,63 @@
 <!-- vim:ts=4:sts=4:sw=4:et:tw=60 -->
 
+# 0.5.4
+
+-   Bridge progress events
+-   Update dependencies
+-   Evaluating Testling for continuous integration
+
+# 0.5.3
+
+-   Bridge null and undefined properly
+
+# 0.5.2
+
+-   Bug fixes for remote function calls
+
+# 0.5.1
+
+-   Bug fixes for remote function calls
+
+# 0.5.0 - BACKWARD INCOMPATIBLE
+
+-   Updates for Q 0.9
+
+# 0.4.7
+
+-   Fixes the Queue module dependency
+
+# 0.4.6
+
+-   Fixes a dependency problem in the adapter module
+
+# 0.4.5
+
+-   Uses semantic versioning for dependency ranges
+-   Factors the adapter into a separate module
+-   Improves the bridge protocol such that it can transfer functions and
+    error objects.
+
+# 0.4.4
+
+-   Renamed to Q-Connection, from Q-Comm
+-   Fixes a missing variable scope
+
+# 0.4.2
+
+-   Updated dependencies
+-   Fixed tests
+
+# 0.4.1 - BACKWARD INCOMPATIBLE
+
+-   Support for Node websocket, since abandoned
+-   Abandon support for non-CommonJS script or module loading
+-   Bug fix for improbable random number collisions
+-   John Barton's work on UUID et cetra
+
+# 0.4.0
+
+Elided.
+
 # 0.3.1
 
 -   Added example of communicating with an iframe.
