@@ -254,6 +254,42 @@ describe("serialization", function () {
         })
     });
 
+    it("should serialize NaN", function () {
+        var peers = makePeers({
+            respond: function (value) {
+                return value !== value; // NaN is the only value that breaks identity.
+            }
+        });
+        return peers.remote.invoke("respond", NaN)
+        .then(function (result) {
+            expect(result).toBe(true);
+        })
+    });
+
+    it("should serialize Infinity", function () {
+        var peers = makePeers({
+            respond: function (value) {
+                return value === Number.POSITIVE_INFINITY;
+            }
+        });
+        return peers.remote.invoke("respond", 1/0)
+        .then(function (result) {
+            expect(result).toBe(true);
+        })
+    });
+
+    it("should serialize -Infinity", function () {
+        var peers = makePeers({
+            respond: function (value) {
+                return value === Number.NEGATIVE_INFINITY;
+            }
+        });
+        return peers.remote.invoke("respond", -1/0)
+        .then(function (result) {
+            expect(result).toBe(true);
+        })
+    });
+
     it("should serialize special key names", function () {
         var reference = {
             "@": 1,
