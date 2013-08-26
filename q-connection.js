@@ -190,15 +190,14 @@ function Connection(connection, local, options) {
             makeLocal(id);
             dispatchLocal(id, 'resolve', object);
             return {"@": id, "type": typeof object};
-        } else if (object instanceof Error) {
-            return {
-                message: object.message,
-                stack: object.stack
-            };
         } else if (Array.isArray(object)) {
             return object.map(encode);
         } else if (typeof object === "object") {
             var result = {};
+            if (object instanceof Error) {
+                result.message = object.message;
+                result.stack = object.stack;
+            }
             for (var key in object) {
                 if (has.call(object, key)) {
                     var newKey = key.replace(/[@!%\\]/, function ($0) {
