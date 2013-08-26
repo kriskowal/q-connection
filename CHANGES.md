@@ -1,5 +1,11 @@
 <!-- vim:ts=4:sts=4:sw=4:et:tw=60 -->
 
+# 0.5.5
+
+-   Support for bridging NaN, Infinity, -Infinity
+    <cloud9@paulkoppen.com>
+-   Support for bridging all properties of an Error (@thibaultzanini)
+
 # 0.5.4
 
 -   Bridge progress events
