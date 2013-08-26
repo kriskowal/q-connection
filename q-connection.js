@@ -184,8 +184,17 @@ function Connection(connection, local, options) {
         if (object === undefined) {
             return {"%": "undefined"};
         } else if (Object(object) !== object) {
+            if (typeof object == "number") {
+                if (object === Number.POSITIVE_INFINITY) {
+                    return {"%": "+Infinity"};
+                } else if (object === Number.NEGATIVE_INFINITY) {
+                    return {"%": "-Infinity"};
+                } else if (isNaN(object)) {
+                    return {"%": "NaN"};
+                }
+            }
             return object;
-        } if (Q.isPromise(object) || typeof object === "function") {
+        } else if (Q.isPromise(object) || typeof object === "function") {
             var id = makeId();
             makeLocal(id);
             dispatchLocal(id, 'resolve', object);
@@ -220,6 +229,12 @@ function Connection(connection, local, options) {
         } else if (object['%']) {
             if (object["%"] === "undefined") {
                 return undefined;
+            } else if (object["%"] === "+Infinity") {
+                return Number.POSITIVE_INFINITY;
+            } else if (object["%"] === "-Infinity") {
+                return Number.NEGATIVE_INFINITY;
+            } else if (object["%"] === "NaN") {
+                return Number.NaN;
             } else {
                 return Q.reject(new TypeError("Unrecognized type: " + object["%"]));
             }
