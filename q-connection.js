@@ -30,12 +30,33 @@ function Connection(connection, local, options) {
         debug.apply(null, [debugKey].concat(Array.prototype.slice.call(arguments)));
     }
 
+    // Some day, the following will merely be:
+    //  connection.forEach(function (message) {
+    //      receive(message);
+    //  })
+    //  .then(function () {
+    //      var error = new Error("Connection closed");
+    //      locals.forEach(function (local) {
+    //          local.reject(error);
+    //      });
+    //  })
+    //  .done()
+
     // message receiver loop
     connection.get().then(get);
     function get(message) {
         _debug("receive:", message);
         connection.get().then(get);
         receive(message);
+    }
+
+    if (connection.closed) {
+        connection.closed.then(function () {
+            var error = new Error("Can't resolve promise because Connection closed");
+            locals.forEach(function (local) {
+                local.reject(error);
+            });
+        });
     }
 
     // message receiver
