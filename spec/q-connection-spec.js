@@ -10,11 +10,19 @@ function makeChannel() {
     return {
         l2r: {
             get: sending.get,
-            put: receiving.put
+            put: receiving.put,
+            close: sending.close,
+            closed: sending.closed
         },
         r2l: {
             get: receiving.get,
-            put: sending.put
+            put: sending.put,
+            close: receiving.close,
+            closed: receiving.closed
+        },
+        close: function () {
+            sending.close();
+            receiving.close();
         }
     };
 }
@@ -23,7 +31,8 @@ function makePeers(local, remote) {
     var channel = makeChannel();
     return {
         local: Connection(channel.l2r, local),
-        remote: Connection(channel.r2l, remote)
+        remote: Connection(channel.r2l, remote),
+        close: channel.close
     }
 }
 
@@ -212,6 +221,7 @@ describe("remote promises that notify progress", function () {
 });
 
 describe("rejection", function () {
+
     it("should become local functions", function () {
         var peers = makePeers({
             respond: function () {
@@ -226,6 +236,23 @@ describe("rejection", function () {
             expect(error.message).toBe("No!");
         })
     });
+
+    it("should reject all pending promises on lost connection", function () {
+        var peers = makePeers({
+            respond: function () {
+                return Q.defer().promise;
+            }
+        });
+        peers.close();
+        return peers.remote.invoke("respond")
+        .then(function () {
+            expect(true).toBe(false); // should not get here
+        }, function (error) {
+            expect(error.message).toBe("Can't resolve promise because Connection closed");
+        })
+        .timeout(500);
+    });
+
 });
 
 describe("serialization", function () {

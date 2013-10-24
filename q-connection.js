@@ -31,10 +31,10 @@ function Connection(connection, local, options) {
     }
 
     // message receiver loop
-    connection.get().then(get).done();
+    connection.get().then(get);
     function get(message) {
         _debug("receive:", message);
-        connection.get().then(get).done();
+        connection.get().then(get);
         receive(message);
     }
 
