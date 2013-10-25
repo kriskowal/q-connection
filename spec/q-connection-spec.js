@@ -221,6 +221,14 @@ describe("remote promises that notify progress", function () {
 });
 
 describe("rejection", function () {
+    function expectRejected(promise) {
+        return promise.then(function () {
+            expect(true).toBe(false); // should not get here
+        }, function (error) {
+            expect(error.message).toBe("Can't resolve promise because Connection closed");
+        })
+        .timeout(500);
+    }
 
     it("should become local functions", function () {
         var peers = makePeers({
@@ -244,13 +252,16 @@ describe("rejection", function () {
             }
         });
         peers.close();
-        return peers.remote.invoke("respond")
-        .then(function () {
-            expect(true).toBe(false); // should not get here
-        }, function (error) {
-            expect(error.message).toBe("Can't resolve promise because Connection closed");
-        })
-        .timeout(500);
+        return expectRejected(peers.remote.invoke("respond"));
+    });
+
+    it("should reject all pending promises on lost connection 2", function () {
+        var peers = makePeers({ a: 1 }, { b: 2 });
+        peers.close();
+        return Q.all([
+            expectRejected(peers.local.get("b")),
+            expectRejected(peers.remote.get("a"))
+        ]);
     });
 
 });
