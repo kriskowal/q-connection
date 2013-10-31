@@ -8,7 +8,7 @@ asynchronously between memory-isolated JavaScript contexts,
 including pipelining interactions with results.  Promises
 serve as proxies for remote objects.
 
-Q-Comm works in Node and other CommonJS module loaders like
+Q-Connection works in Node and other CommonJS module loaders like
 [Browserify][], [Mr][], and [Montage][].
 
 [Q]: https://github.com/kriskowal/q
@@ -42,7 +42,7 @@ sauce.
 
 The ``port`` is any W3C message port, web worker, or web
 socket.  In the W3C’s infinite wisdom, these do not have a
-unified API, but Q-Comm will normalize them internally.
+unified API, but Q-Connection will normalize them internally.
 
 ```javascript
 // To communicate with objects in a worker
@@ -196,11 +196,11 @@ the network horizontally, and through time vertically.
 Ports
 -----
 
-Q-Comm handles a variety of message ports or channel types.  They are
+Q-Connection handles a variety of message ports or channel types.  They are
 all internally converted into a Q Channel.  If you are using a message
 channel that provides a different API than this or a WebWorker,
 WebSocket, or MessagePort, you can adapt it to any of these interfaces
-and Q-Comm will handle it.
+and Q-Connection will handle it.
 
 This is probably the simplest way to create a channel duck-type,
 assuming that you’ve got a connection instance of the Node variety.
@@ -210,7 +210,7 @@ var port = {
     postMessage: function (message) {
         connection.send(message);
     },
-    onmessage: null // gets filled in by Q-Comm
+    onmessage: null // gets filled in by Q-Connection
 };
 connection.on("message", function (data) {
     port.onmessage({data: ""})
@@ -225,7 +225,7 @@ var port = {
   postMessage: function (message) {
     socket.emit("message", message);
   },
-  onmessage: null // gets filled in by Q-Comm
+  onmessage: null // gets filled in by Q-Connection
 };
 socket.on("message", function(data) {
   port.onmessage({data: data});
@@ -245,7 +245,7 @@ var remote = Connection(port, local);
     sent.
 -   ``closed`` a promise that is fulfilled with the reason for closing.
 
-Q-Comm exports an indefinite ``Queue`` that supports this API which
+Q-Connection exports an indefinite ``Queue`` that supports this API which
 greatly simplifies the implementation of adapters.
 
 -   ``get()`` returns a promise for the next value in order that is
@@ -263,14 +263,14 @@ greatly simplifies the implementation of adapters.
 
 ## Web Workers and Message Ports
 
-Q-Comm detects ports by their ``postMessage`` function.
+Q-Connection detects ports by their ``postMessage`` function.
 
 -   ``postMessage(message)``
 -   ``onmessage(handler(message))``
 
 ## Web Sockets
 
-Q-Comm detects Web Sockets by their ``send`` function.  It takes the
+Q-Connection detects Web Sockets by their ``send`` function.  It takes the
 liberty to start the socket and listens for when it opens.
 
 -   ``send(message)``
@@ -282,7 +282,7 @@ liberty to start the socket and listens for when it opens.
 Memory
 ------
 
-Q-Comm uses an LRU cache of specified size.  The default size is
+Q-Connection uses an LRU cache of specified size.  The default size is
 infinite, which is horribly leaky.  Promises between peers will stick
 around indefinitely.  This can be trimmed to something reasonable with
 the ``max`` option.
