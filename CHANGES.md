@@ -1,5 +1,10 @@
 <!-- vim:ts=4:sts=4:sw=4:et:tw=60 -->
 
+# 0.5.6
+
+-   Pending remote promises are rejected if the underlying connection
+    closes
+
 # 0.5.5
 
 -   Support for bridging NaN, Infinity, -Infinity
