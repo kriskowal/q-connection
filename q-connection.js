@@ -61,7 +61,7 @@ function Connection(connection, local, options) {
 
     // message receiver
     function receive(message) {
-        message = JSON.parse(message);
+        message = JSON.retrocycle(JSON.parse(message));
         _debug("receive: parsed message", message);
 
         if (!receivers[message.type])
@@ -108,11 +108,11 @@ function Connection(connection, local, options) {
                         resolution = {"!": null};
                     }
                 }
-                envelope = JSON.stringify({
+                envelope = JSON.stringify(JSON.decycle({
                     "type": "resolve",
                     "to": message.from,
                     "resolution": resolution
-                });
+                }));
                 connection.put(envelope);
             }, function (reason) {
                 try {
@@ -124,31 +124,31 @@ function Connection(connection, local, options) {
                         reason = null;
                     }
                 }
-                envelope = JSON.stringify({
+                envelope = JSON.stringify(JSON.decycle({
                     "type": "resolve",
                     "to": message.from,
                     "resolution": {"!": reason}
-                })
+                }));
                 connection.put(envelope);
             }, function (progress) {
                 try {
                     progress = encode(progress);
-                    envelope = JSON.stringify({
+                    envelope = JSON.stringify(JSON.decycle({
                         "type": "notify",
                         "to": message.from,
                         "resolution": progress
-                    });
+                    }));
                 } catch (exception) {
                     try {
                         progress = {"!": encode(exception)};
                     } catch (exception) {
                         progress = {"!": null};
                     }
-                    envelope = JSON.stringify({
+                    envelope = JSON.stringify(JSON.decycle({
                         "type": "resolve",
                         "to": message.from,
                         "resolution": progress
-                    });
+                    }));
                 }
                 connection.put(envelope);
             })
@@ -179,7 +179,12 @@ function Connection(connection, local, options) {
     // makes a promise that will send all of its events to a
     // remote object.
     function makeRemote(id) {
-        return Q.makePromise({
+        if (locals.has(id)) {
+          // this is to prevent pointless local :Far to remote :Far to local :Near loops
+          // -Zarutian
+          return locals.get(id).promise;
+        }
+        var r = Q.makePromise({
             when: function () {
                 return this;
             }
@@ -196,6 +201,8 @@ function Connection(connection, local, options) {
             }));
             return response;
         });
+        r.remote_id = id; // is this kind of monkey fingering allowed?
+        return r;
     }
 
     // serializes an object tree, encoding promises such
@@ -216,10 +223,14 @@ function Connection(connection, local, options) {
             }
             return object;
         } else if (Q.isPromise(object) || typeof object === "function") {
-            var id = makeId();
-            makeLocal(id);
-            dispatchLocal(id, 'resolve', object);
-            return {"@": id, "type": typeof object};
+            if (object.remote_id === undefined) {
+              var id = makeId();
+              makeLocal(id);
+              dispatchLocal(id, 'resolve', object);
+              return {"@": id, "type": (typeof object)};
+            } else {
+              return {"@": object.remote_id, "type": (typeof object)};
+            }
         } else if (Array.isArray(object)) {
             return object.map(encode);
         } else if (typeof object === "object") {
@@ -297,4 +308,3 @@ function Connection(connection, local, options) {
     return makeRemote(rootId);
 
 }
-
