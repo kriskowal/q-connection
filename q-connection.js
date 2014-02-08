@@ -172,7 +172,7 @@ function Connection(connection, local, options) {
     // a utility for resolving the local promise
     // for a given identifier.
     function dispatchLocal(id, op, value) {
-        _debug(op + ':', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
+//        _debug(op + ':', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
         locals.get(id)[op](value);
     }
 
