@@ -50,6 +50,11 @@ function adapt(port, origin) {
         port.on("message", function (data) {
             queue.put(data);
         }, false);
+    // Chrome extension message ports
+    } else if (port.onMessage) {
+        port.onMessage.addListener(function (message) {
+            queue.put(message);
+        });
     } else if (port.addEventListener) {
         port.addEventListener("message", function (event) {
             queue.put(event.data);
