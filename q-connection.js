@@ -172,7 +172,7 @@ function Connection(connection, local, options) {
     // a utility for resolving the local promise
     // for a given identifier.
     function dispatchLocal(id, op, value) {
-        _debug(op + ':', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
+//        _debug(op + ':', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
         locals.get(id)[op](value);
     }
 
@@ -223,20 +223,27 @@ function Connection(connection, local, options) {
         } else if (Array.isArray(object)) {
             return object.map(encode);
         } else if (typeof object === "object") {
-            var result = {};
-            if (object instanceof Error) {
-                result.message = object.message;
-                result.stack = object.stack;
-            }
-            for (var key in object) {
-                if (has.call(object, key)) {
-                    var newKey = key.replace(/[@!%\\]/, function ($0) {
-                        return "\\" + $0;
-                    });
-                    result[newKey] = encode(object[key]);
+            if (object.constructor === Object && object.prototype === Object.prototype) {
+                var result = {};
+                if (object instanceof Error) {
+                    result.message = object.message;
+                    result.stack = object.stack;
                 }
+                for (var key in object) {
+                    if (has.call(object, key)) {
+                        var newKey = key.replace(/[@!%\\]/, function ($0) {
+                            return "\\" + $0;
+                        });
+                        result[newKey] = encode(object[key]);
+                    }
+                }
+                return result;
+            } else {
+                var id = makeId();
+                makeLocal(id);
+                dispatchLocal(id, 'resolve', object);
+                return {"@": id, "type": typeof object};
             }
-            return result;
         } else {
             return object;
         }
