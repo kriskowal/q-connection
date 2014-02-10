@@ -1,5 +1,16 @@
 <!-- vim:ts=4:sts=4:sw=4:et:tw=60 -->
 
+# 0.6.0
+
+-   :warning: Only treat object literals, descending directly from Object
+    prototype or Error prototype, as passy-by-copy objects. All others are pass
+    by remote reference. This may cause minor compatibility problems.
+    Note that in a future release, all object references will be
+    pass-by-reference by default, and pass-by-copy only explicitly.
+-   Support the marshalling of reference cycles.
+-   Support Chrome extension message ports, with their
+    `port.onMessage.addListener` interface.
+
 # 0.5.6
 
 -   Pending remote promises are rejected if the underlying connection
