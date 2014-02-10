@@ -3,7 +3,7 @@
 # 0.6.0
 
 -   :warning: Only treat object literals, descending directly from Object
-    prototype or Error prototype, as passy-by-copy objects. All others are pass
+    prototype or Error prototype, as pass-by-copy objects. All others are pass
     by remote reference. This may cause minor compatibility problems.
     Note that in a future release, all object references will be
     pass-by-reference by default, and pass-by-copy only explicitly.
