@@ -1,6 +1,7 @@
 
 var Q = require("q");
 var LruMap = require("collections/lru-map");
+var Map = require("collections/map");
 var UUID = require("./lib/uuid");
 var adapt = require("./adapt");
 
@@ -201,7 +202,9 @@ function Connection(connection, local, options) {
     // serializes an object tree, encoding promises such
     // that JSON.stringify on the result will produce
     // "QSON": serialized promise objects.
-    function encode(object) {
+    function encode(object, memo, path ) {
+        memo = memo || new Map();
+        path = path || "";
         if (object === undefined) {
             return {"%": "undefined"};
         } else if (Object(object) !== object) {
@@ -215,15 +218,23 @@ function Connection(connection, local, options) {
                 }
             }
             return object;
-        } else if (Q.isPromise(object) || typeof object === "function") {
-            var id = makeId();
-            makeLocal(id);
-            dispatchLocal(id, "resolve", object);
-            return {"@": id, "type": typeof object};
-        } else if (Array.isArray(object)) {
-            return object.map(encode);
-        } else if (typeof object === "object") {
-            if (
+        } else {
+            var encoded;
+            if (memo.has(object)) {
+                return {"$": memo.get(object)};
+            } else {
+                memo.set(object, path);
+            }
+            if (Q.isPromise(object) || typeof object === "function") {
+                var id = makeId();
+                makeLocal(id);
+                dispatchLocal(id, "resolve", object);
+                return {"@": id, "type": typeof object};
+            } else if (Array.isArray(object)) {
+                return object.map(function (value, index) {
+                    return encode(value, memo, path + "/" + index);
+                });
+            } else if (
                 (
                     object.constructor === Object &&
                     Object.getPrototypeOf(object) === Object.prototype
@@ -237,10 +248,10 @@ function Connection(connection, local, options) {
                 }
                 for (var key in object) {
                     if (has.call(object, key)) {
-                        var newKey = key.replace(/[@!%\\]/, function ($0) {
+                        var newKey = key.replace(/[@!%\$\/\\]/, function ($0) {
                             return "\\" + $0;
                         });
-                        result[newKey] = encode(object[key]);
+                        result[newKey] = encode(object[key], memo, path + "/" + newKey);
                     }
                 }
                 return result;
@@ -250,15 +261,17 @@ function Connection(connection, local, options) {
                 dispatchLocal(id, "resolve", object);
                 return {"@": id, "type": typeof object};
             }
-        } else {
-            return object;
         }
     }
 
     // decodes QSON
-    function decode(object) {
+    function decode(object, memo, path) {
+        memo = memo || new Map();
+        path = path || "";
         if (Object(object) !== object) {
             return object;
+        } else if (object["$"] !== void 0) {
+            return memo.get(object["$"]);
         } else if (object["%"]) {
             if (object["%"] === "undefined") {
                 return undefined;
@@ -282,16 +295,15 @@ function Connection(connection, local, options) {
             } else {
                 return remote;
             }
-        } else if (Array.isArray(object)) {
-            return object.map(decode);
         } else {
-            var newObject = {};
+            var newObject = Array.isArray(object) ? [] : {};
+            memo.set(path, newObject);
             for (var key in object) {
                 if (has.call(object, key)) {
-                    var newKey = key.replace(/\\([\\!@%])/, function ($0, $1) {
+                    var newKey = key.replace(/\\([\\!@%\$\/])/, function ($0, $1) {
                         return $1;
                     });
-                    newObject[newKey] = decode(object[key]);
+                    newObject[newKey] = decode(object[key], memo, path + "/" + key);
                 }
             }
             return newObject;

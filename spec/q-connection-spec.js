@@ -350,5 +350,33 @@ describe("serialization", function () {
         });
     });
 
+    it("should serialize reference cycles", function () {
+        var peers = makePeers({
+            respond: function () {
+                var a = [];
+                a[0] = a;
+                return a;
+            }
+        })
+        return peers.remote.invoke("respond")
+        .then(function (response) {
+            expect(response[0]).toBe(response);
+        });
+    });
+
+    it("should serialize complex reference cycles", function () {
+        var peers = makePeers({
+            respond: function () {
+                var a = {};
+                a.b = [a, a, a, 10, 20];
+                return {d: a};
+            }
+        })
+        return peers.remote.invoke("respond")
+        .then(function (response) {
+            expect(response.d.b[1]).toBe(response.d);
+        });
+    });
+
 });
 
