@@ -75,12 +75,12 @@ function Connection(connection, local, options) {
     var receivers = {
         "resolve": function (message) {
             if (locals.has(message.to)) {
-                dispatchLocal(message.to, 'resolve', decode(message.resolution));
+                dispatchLocal(message.to, "resolve", decode(message.resolution));
             }
         },
         "notify": function (message) {
             if (locals.has(message.to)) {
-                dispatchLocal(message.to, 'notify', decode(message.resolution));
+                dispatchLocal(message.to, "notify", decode(message.resolution));
             }
         },
         // a "send" message forwards messages from a remote
@@ -186,7 +186,7 @@ function Connection(connection, local, options) {
         }, function (op, args) {
             var localId = makeId();
             var response = makeLocal(localId);
-             _debug('sending:', "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
+             _debug("sending:", "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
             connection.put(JSON.stringify({
                 "type": "send",
                 "to": id,
@@ -218,12 +218,18 @@ function Connection(connection, local, options) {
         } else if (Q.isPromise(object) || typeof object === "function") {
             var id = makeId();
             makeLocal(id);
-            dispatchLocal(id, 'resolve', object);
+            dispatchLocal(id, "resolve", object);
             return {"@": id, "type": typeof object};
         } else if (Array.isArray(object)) {
             return object.map(encode);
         } else if (typeof object === "object") {
-            if (object.constructor === Object && object.prototype === Object.prototype) {
+            if (
+                (
+                    object.constructor === Object &&
+                    Object.getPrototypeOf(object) === Object.prototype
+                ) ||
+                object instanceof Error
+            ) {
                 var result = {};
                 if (object instanceof Error) {
                     result.message = object.message;
@@ -241,7 +247,7 @@ function Connection(connection, local, options) {
             } else {
                 var id = makeId();
                 makeLocal(id);
-                dispatchLocal(id, 'resolve', object);
+                dispatchLocal(id, "resolve", object);
                 return {"@": id, "type": typeof object};
             }
         } else {
@@ -253,7 +259,7 @@ function Connection(connection, local, options) {
     function decode(object) {
         if (Object(object) !== object) {
             return object;
-        } else if (object['%']) {
+        } else if (object["%"]) {
             if (object["%"] === "undefined") {
                 return undefined;
             } else if (object["%"] === "+Infinity") {
@@ -265,9 +271,9 @@ function Connection(connection, local, options) {
             } else {
                 return Q.reject(new TypeError("Unrecognized type: " + object["%"]));
             }
-        } else if (object['!']) {
-            return Q.reject(object['!']);
-        } else if (object['@']) {
+        } else if (object["!"]) {
+            return Q.reject(object["!"]);
+        } else if (object["@"]) {
             var remote = makeRemote(object["@"]);
             if (object.type === "function") {
                 return function () {
@@ -300,7 +306,7 @@ function Connection(connection, local, options) {
     // the root object is an empty-string by convention.
     // All other identifiers are numbers.
     makeLocal(rootId);
-    dispatchLocal(rootId, 'resolve', local);
+    dispatchLocal(rootId, "resolve", local);
     return makeRemote(rootId);
 
 }
