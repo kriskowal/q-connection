@@ -1,75 +1,45 @@
 {
   "name": "q-connection",
-  "version": "0.6.0",
-  "description": "An inter-worker asynchronous promise communication system.",
-  "homepage": "http://github.com/kriskowal/q-connection/",
-  "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
+  "version": "2.0.0",
+  "description": "Pipelines messages to remote objects using promises",
+  "homepage": "https://github.com/kriskowal/q-connection/",
+  "author": "Kris Kowal <kris@cixar.com> (https://github.com/kriskowal/)",
   "contributors": [
-    "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
+    "Kris Kowal <kris@cixar.com> (https://github.com/kriskowal/)",
     "Irakli Gozalishvili <rfobic@gmail.com> (http://jeditoolkit.com/)"
   ],
   "credits": [
     "Mark Miller <erights@google.com>"
   ],
-  "bugs": {
-    "mail": "kris@cixar.com",
-    "url": "http://github.com/kriskowal/q-connection/issues"
-  },
   "licenses": [
     {
       "type": "MIT",
-      "url": "http://github.com/kriskowal/q-connection/raw/master/LICENSE"
+      "url": "https://github.com/kriskowal/q-connection/raw/master/LICENSE"
     }
   ],
   "main": "q-connection.js",
   "dependencies": {
-    "q": "~0.9.6",
-    "collections": "~0.1.24"
+    "q": "^2.0.0",
+    "asap": "^1.0.0",
+    "q-io": "^2.0.0",
+    "collections": "^2.0.0"
   },
   "devDependencies": {
-    "jasmine-node": "~1.7.0",
-    "cover": "*",
-    "opener": "*",
-    "mocha": "~1.11.0",
-    "mocha-as-promised": "~1.4.0"
+    "jasminum": "^1.0.0",
+    "jshint": "^2.4.4"
   },
   "scripts": {
-    "test": "jasmine-node spec",
-    "mocha": "mocha test",
-    "cover": "cover run jasmine-node spec && cover report html && opener cover_html/index.html"
+    "test": "npm run test:node && npm run lint",
+    "test:node": "jasminum test",
+    "test:phantom": "jasminum-phantom test",
+    "lint": "jshint q-connection.js"
   },
-  "testling": {
-    "harness": "mocha",
-    "files": "test/*-test.js",
-    "browsers": [
-      "iexplore/6.0",
-      "iexplore/7.0",
-      "iexplore/8.0",
-      "iexplore/9.0",
-      "iexplore/10.0",
-      "chrome/25.0",
-      "firefox/19.0",
-      "firefox/nightly",
-      "opera/11.5",
-      "opera/11.6",
-      "opera/12.0",
-      "opera/next",
-      "safari/4.0",
-      "safari/5.0.5",
-      "safari/5.1",
-      "safari/6.0",
-      "chrome/canary",
-      "iphone/6.0",
-      "ipad/6.0",
-      "android-browser/4.2"
-    ]
+  "bugs": {
+    "mail": "kris@cixar.com",
+    "url": "https://github.com/kriskowal/q-connection/issues"
   },
   "repository": {
     "type": "git",
     "url": "git://github.com/kriskowal/q-connection.git"
-  },
-  "engines": {
-    "node": ">=0.2.0",
-    "jetpack": ">=0.9.0"
   }
 }
