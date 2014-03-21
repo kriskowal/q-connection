@@ -95,10 +95,11 @@ Connection.prototype.log = function () {
 
 Connection.prototype.handleMessage = function (message) {
     if (message.type === "dispatch") {
-        this.log("@" + (-message.to), "RECEIVED DISPATCH", message.op, message.args, "->", "@" + (-message.from));
+        var args = this.import(message.args);
+        this.log("@" + (-message.to), "RECEIVED DISPATCH", message.op, args, "->", "@" + (-message.from));
         var result = this.getRemote(-message.to)
             .promise
-            .dispatch(message.op, this.import(message.args));
+            .dispatch(message.op, args);
         this.getRemote(-message.from).resolve(result);
     } else if (message.type === "send") {
         this.log("$" + (-message.id), "RECEIVED VALUE", message.value);
@@ -109,6 +110,10 @@ Connection.prototype.handleMessage = function (message) {
     } else if (message.type === "reject") {
         this.log("@" + (-message.id), "RECEIVED REJECTION", message.error);
         this.getRemote(-message.id).reject(this.import(message.error));
+    } else if (message.type === "pass") {
+        this.log("@" + (-message.id), "RECEIVED PASS BY REF PROMISE");
+        var remote = this.getRemote(-message.id);
+        remote.promise = remote.promise.pass();
     } else {
         this.log("RECEIVED UNRECOGNIZED MESSAGE", JSON.stringify(message));
     }
@@ -166,6 +171,13 @@ Connection.prototype.export = function (value) {
                 reference = {"@": id};
                 this.references.set(value, reference);
                 this.references.set(remote, reference);
+                if (value.toBePassed()) {
+                    this.log("@" + id, "SENT PASS BY REF PROMISE");
+                    this.dispatchMessage({
+                        type: "pass",
+                        id: id
+                    });
+                }
             } else if (!Q.isPortable(value)) {
                 var questionId = this.nextQuestionId;
                 this.nextQuestionId += 2;
@@ -261,11 +273,15 @@ function Remote(connection, id, objectId) {
 }
 
 Remote.prototype.inspect = function () {
-    return {
-        state: "remote",
-        id: this.id,
-        connection: this.connection.token
-    };
+    if (this.resolution) {
+        return this.resolution.inspect();
+    } else {
+        return {
+            state: "remote",
+            id: this.id,
+            connection: this.connection.token
+        };
+    }
 };
 
 Remote.prototype.resolve = function (value) {
@@ -297,6 +313,7 @@ Remote.prototype.reject = function (error) {
 
 Remote.prototype.become = function (promise) {
     var self = this;
+    this.resolution = promise;
     promise.then(function (value) {
         if (!self.connection) {
             return; // For testing purposes
@@ -354,7 +371,9 @@ Remote.prototype.dispatch = function (resolve, op, args) {
             op: op,
             args: this.connection.export(args)
         });
-        resolve(question.promise);
+        if (resolve) {
+            resolve(question.promise);
+        }
         this.connection.log("@" + this.id, "SENT DISPATCH", op, this.connection.export(args), "->", "@" + question.id);
     }
 };

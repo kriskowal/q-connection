@@ -204,13 +204,25 @@ it("sends a remote value back to the remote", function () {
         foo: {},
         bar: function (foo) {
             var self = this;
-            expect(Q.isPromise(foo));
+            expect(Q.isPromise(foo)).toBe(true);
             return foo.then(function (foo) {
                 expect(foo).toBe(self.foo);
             });
         }
     });
     return peers.remote.invoke("bar", peers.remote.get("foo"));
+});
+
+it("sends a remote value back to the remote", function () {
+    var peers = makePeers(null, {
+        foo: {},
+        bar: function (foo) {
+            var self = this;
+            expect(Q.isPromise(foo)).toBe(false);
+            expect(foo).toBe(self.foo);
+        }
+    });
+    return peers.remote.invoke("bar", peers.remote.get("foo").pass());
 });
 
 // Can send messages to a remote value before its resolution arrives.
