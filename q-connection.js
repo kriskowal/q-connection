@@ -70,8 +70,6 @@ function Connection(stream, local, options) {
     // {@} or {$} object corresponding to another object
     this.references = new WeakMap();
 
-    // CURSOR
-
     // consume incoming messages
     stream.forEach(this.handleMessage, this)
     .finally(function () {
@@ -120,11 +118,7 @@ Connection.prototype.handleMessage = function (message) {
 };
 
 Connection.prototype.dispatchMessage = function (message) {
-    if (this.options.Buffer) {
-    } else if (this.options.Uint8Array) {
-    } else {
-        this.stream.yield(message);
-    }
+    this.stream.yield(message);
 };
 
 Connection.prototype.getRemote = function (id) {
@@ -328,7 +322,7 @@ Remote.prototype.become = function (promise) {
         if (!self.connection) {
             return; // For testing purposes
         }
-        var reference = self.connection.export(error);
+        var reference = self.connection.export(Q.push(error));
         self.connection.dispatchMessage({
             type: "reject",
             id: self.id,
