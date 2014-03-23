@@ -10,34 +10,6 @@ Connection.nextId = 0;
 
 // http://erights.org/elib/distrib/captp/4tables.html
 
-// Questions: remote promise for an object from the far side of the connection.
-// Questions have positive identifiers.
-// The near side of a connection assigns question identifiers. They will be
-// positive locally, and negative remotely.
-// The far side of the connection should eventually send a message to answer
-// the question.
-// The answer may simply state that the remote reference has been resolved,
-// in which case, the question continues to proxy messages to the far side.
-// The answer may also be either an import, export, or another answer.
-// Messages can be dispatched on an unresolved question. If the question is
-// pending, the messages are forwarded to the far side of the connection.
-// If the message is resolved, the messages are forwarded to the resolution
-// promise locally.
-
-// Answers: remote promise for a resolution on the near side of the connection,
-// corresponding to a remote question.
-// Answers have negative identifiers.
-
-// Questions and answers are referenced with {"@": id} objects.
-
-// Imports and Exports: If an object is marked for pass-by-copy using
-// Q.passByCopy or Q.push, it will be given a positive identifier locally,
-// serialized, and transmitted over the connection.
-// The corresponding import on the far side of the connection will have the
-// negative identifier.
-// Once an object has been transmitted, it will be referred to in messages as
-// {"$": id}, using the identifier from the sender's perspective.
-
 module.exports = Connection;
 function Connection(stream, local, options) {
     if (!(this instanceof Connection)) {
@@ -58,16 +30,17 @@ function Connection(stream, local, options) {
     // In a message, identifiers reflect the *sender's* view of the domain.
     // In memory, identifiers reflect our own view of the domain.
 
-    // Remotes are encoded as {@} references.
-    // Positive identifiers indicate questions.
-    // Negative identifiers indicate answers.
+    // Positive identifiers indicate sent promises.
+    // Negative identifiers indicate received promises.
     this.remotes = new LruMap(null, options.capacity);
     this.remotes.observeMapChange(this, "remotes");
-    // Objects are encoded as {$} references.
-    // Positive identifiers indicate exports.
-    // Negative identifiers indicate imports.
+    // Positive identifiers indicate sent objects.
+    // Negative identifiers indicate received objects.
     this.objects = new LruMap(null, options.capacity);
-    // {@} or {$} object corresponding to another object
+    // maps local objects to encoded references
+    // {@} indicates a shared promise
+    // {$} indicates a shared object
+    // {->} indicates a shared function
     this.references = new WeakMap();
 
     // consume incoming messages
@@ -93,27 +66,27 @@ Connection.prototype.log = function () {
 
 Connection.prototype.handleMessage = function (message) {
     if (message.type === "dispatch") {
-        var args = this.import(message.args);
-        this.log("@" + (-message.to), "RECEIVED DISPATCH", message.op, args, "->", "@" + (-message.from));
+        var args = this.decode(message.args);
+        this.log("@" + (-message.to), "received dispatch", message.op, args, "->", "@" + (-message.from));
         var result = this.getRemote(-message.to)
             .promise
             .dispatch(message.op, args);
         this.getRemote(-message.from).resolve(result);
-    } else if (message.type === "send") {
-        this.log("$" + (-message.id), "RECEIVED VALUE", message.value);
-        this.import(message.value, -message.id);
+    } else if (message.type === "objects") {
+        this.log("received", message.objects);
+        this.receiveObjects(message.objects);
     } else if (message.type === "resolve") {
-        this.log("@" + (-message.id), "RECEIVED RESOLUTION", message.value);
-        this.getRemote(-message.id).resolve(this.import(message.value));
+        this.log("@" + (-message.id), "received resolution", message.value);
+        this.getRemote(-message.id).resolve(this.decode(message.value));
     } else if (message.type === "reject") {
-        this.log("@" + (-message.id), "RECEIVED REJECTION", message.error);
-        this.getRemote(-message.id).reject(this.import(message.error));
+        this.log("@" + (-message.id), "received rejection", message.error);
+        this.getRemote(-message.id).reject(this.decode(message.error));
     } else if (message.type === "pass") {
-        this.log("@" + (-message.id), "RECEIVED PASS BY REF PROMISE");
+        this.log("@" + (-message.id), "received pass by ref promise");
         var remote = this.getRemote(-message.id);
         remote.promise = remote.promise.pass();
     } else {
-        this.log("RECEIVED UNRECOGNIZED MESSAGE", JSON.stringify(message));
+        this.log("received unrecognized message", JSON.stringify(message));
     }
 };
 
@@ -140,7 +113,24 @@ var infinityRepresentation = {"%": "infinity"};
 var minusInfinityRepresentation = {"%": "-infinity"};
 var nanRepresentation = {"%": "nan"};
 
-Connection.prototype.export = function (value) {
+Connection.prototype.sendObjects = function (value) {
+    var references = {};
+    var result = this.encode(references, value);
+    // An all-too-clever way to dispatch a message only if there are any new
+    // references to send:
+    for (var name in references) {
+        this.log("sent", name, references);
+        this.dispatchMessage({
+            type: "objects",
+            objects: references
+        });
+        break;
+    }
+    return result;
+};
+
+Connection.prototype.encode = function (references, value) {
+    var remote, reference, referenceName, name, id, questionId, objectId;
     if (value === undefined) {
         return undefinedRepresentation;
     } else if (typeof value === "number") {
@@ -154,7 +144,6 @@ Connection.prototype.export = function (value) {
             return value;
         }
     } else if (Object(value) === value) {
-        var remote, reference, id;
         if (!this.references.has(value)) {
             if (Q.isPromise(value)) {
                 id = this.nextQuestionId;
@@ -166,41 +155,41 @@ Connection.prototype.export = function (value) {
                 this.references.set(value, reference);
                 this.references.set(remote, reference);
                 if (value.toBePassed()) {
-                    this.log("@" + id, "SENT PASS BY REF PROMISE");
+                    this.log("@" + id, "sent pass by resolution promise note");
                     this.dispatchMessage({
                         type: "pass",
                         id: id
                     });
                 }
-            } else if (!Q.isPortable(value)) {
-                var questionId = this.nextQuestionId;
+            } else if (!Q.isPortable(value) || typeof value === "function") {
+                questionId = this.nextQuestionId;
                 this.nextQuestionId += 2;
-                var objectId = this.nextExportId;
+                objectId = this.nextExportId;
                 this.nextExportId += 2;
                 remote = new Remote(this, questionId, objectId);
                 remote.resolve(Q(value));
                 this.remotes.set(questionId, remote);
                 this.objects.set(objectId, value);
-                reference = {"@": questionId};
-                this.log("ENCODING", value, reference);
+                if (typeof value === "function") {
+                    reference = {"->": questionId};
+                } else {
+                    reference = {"@": questionId};
+                }
                 this.references.set(value, reference);
-                this.references.set(remote, reference);
+                this.references.set(remote.promise, reference);
             } else {
                 id = this.nextExportId;
                 this.nextExportId += 2;
                 this.objects.set(id, value);
                 this.references.set(value, {"$": id});
-                var representation = Array.isArray(value) ? [] : {};
-                for (var name in value) {
-                    var representationName = name.replace(/[@!%\$\/\\]/, escape);
-                    representation[representationName] = this.export(value[name]);
+                reference = Array.isArray(value) ? [] : {};
+                for (name in value) {
+                    if (Object.hasOwnProperty.call(value, name)) {
+                        referenceName = name.replace(/[@!%\$\/\\\-]/, escape);
+                        reference[referenceName] = this.encode(references, value[name]);
+                    }
                 }
-                this.log("$" + id, "SENT", representation);
-                this.dispatchMessage({
-                    type: "send",
-                    id: id,
-                    value: representation
-                });
+                references[id] = reference;
             }
         }
         return this.references.get(value);
@@ -209,17 +198,42 @@ Connection.prototype.export = function (value) {
     }
 };
 
-Connection.prototype.import = function (value, id) {
+Connection.prototype.receiveObjects = function (references) {
+    var id, reference, referenceName, object, objectName;
+    // First pass creates objects so that they can be linked cyclically
+    for (id in references) {
+        if (Object.prototype.hasOwnProperty.call(references, id)) {
+            reference = references[id];
+            object = Array.isArray(reference) ? [] : {};
+            this.objects.set(-id, object);
+        }
+    }
+    // Second pass populates the objects with values and cross references
+    for (id in references) {
+        if (Object.prototype.hasOwnProperty.call(references, id)) {
+            reference = references[id];
+            object = this.objects.get(-id);
+            for (referenceName in reference) {
+                if (Object.prototype.hasOwnProperty.call(reference, referenceName)) {
+                    objectName = referenceName.replace(/\\([\\!@%\$\/\-])/, unescape);
+                    object[objectName] = this.decode(reference[referenceName], id);
+                }
+            }
+        }
+    }
+};
+
+Connection.prototype.decode = function (value, id) {
     if (Object(value) !== value) {
         return value;
     } else if ("%" in value) {
         if (value["%"] === "undefined") {
             return;
-        } else if (value["%"] === "+Infinity") {
+        } else if (value["%"] === "infinity") {
             return Number.POSITIVE_INFINITY;
-        } else if (value["%"] === "-Infinity") {
+        } else if (value["%"] === "-infinity") {
             return Number.NEGATIVE_INFINITY;
-        } else if (value["%"] === "NaN") {
+        } else if (value["%"] === "nan") {
             return Number.NaN;
         }
     } else if ("@" in value) {
@@ -231,24 +245,26 @@ Connection.prototype.import = function (value, id) {
         }
     } else if ("$" in value) {
         return this.objects.get(-value.$);
+    } else if ("->" in value) {
+        var remoteId = -value["->"];
+        var proxy = proxyFunction(this.getRemote(remoteId).promise);
+        this.references.set(proxy, {"->": remoteId});
+        return proxy;
     } else {
-        var result = Array.isArray(value) ? [] : {};
-        if (id !== void 0) {
-            this.objects.set(id, result);
-            this.references.set(result, {"$": id});
-        }
-        for (var name in value) {
-            var resultName = name.replace(/\\([\\!@%\$\/])/, unescape);
-            result[resultName] = this.import(value[name]);
-        }
-        return result;
+        return this.objects.get(id);
     }
 };
+
+function proxyFunction(remote) {
+    return function () {
+        return remote.apply(this, arguments);
+    };
+}
 
 Connection.prototype.handleRemotesMapChange = function (plus, minus, key, type) {
     if (type === "delete") {
         if (minus.messages) {
-            this.log("REVOKED", minus.id);
+            this.log("revoked", minus.id);
             minus.reject(this.revocationError);
         }
     }
@@ -284,13 +300,13 @@ Remote.prototype.resolve = function (value) {
     }
     if (this.promise === value) {
         if (this.connection) {
-            this.connection.log("@" + this.id, "RESOLVED REMOTELY");
+            this.connection.log("@" + this.id, "resolved remotely");
         }
         this.isRemote = true;
     } else {
         value = Q(value);
         if (this.connection) {
-            this.connection.log("@" + this.id, "BECAME", value.inspect());
+            this.connection.log("@" + this.id, "became", value.inspect());
         }
         this.become(value);
     }
@@ -312,7 +328,7 @@ Remote.prototype.become = function (promise) {
         if (!self.connection) {
             return; // For testing purposes
         }
-        var reference = self.connection.export(value);
+        var reference = self.connection.sendObjects(value);
         self.connection.dispatchMessage({
             type: "resolve",
             id: self.id,
@@ -322,7 +338,7 @@ Remote.prototype.become = function (promise) {
         if (!self.connection) {
             return; // For testing purposes
         }
-        var reference = self.connection.export(Q.push(error));
+        var reference = self.connection.sendObjects(Q.push(error));
         self.connection.dispatchMessage({
             type: "reject",
             id: self.id,
@@ -363,12 +379,12 @@ Remote.prototype.dispatch = function (resolve, op, args) {
             to: this.id,
             from: question.id,
             op: op,
-            args: this.connection.export(args)
+            args: this.connection.sendObjects(args)
         });
         if (resolve) {
             resolve(question.promise);
         }
-        this.connection.log("@" + this.id, "SENT DISPATCH", op, this.connection.export(args), "->", "@" + question.id);
+        this.connection.log("@" + this.id, "sent dispatch", op, this.connection.sendObjects(args), "->", "@" + question.id);
     }
 };
 
