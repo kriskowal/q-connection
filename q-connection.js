@@ -52,8 +52,8 @@ function Connection(connection, local, options) {
     }
 
     if (connection.closed) {
-        connection.closed.then(function () {
-            var error = new Error("Can't resolve promise because Connection closed");
+        connection.closed.then(function (error) {
+            error = new Error("Connection closed because: "+error.message);
             locals.forEach(function (local) {
                 local.reject(error);
             });

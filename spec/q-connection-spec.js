@@ -225,7 +225,7 @@ describe("rejection", function () {
         return promise.then(function () {
             expect(true).toBe(false); // should not get here
         }, function (error) {
-            expect(error.message).toBe("Can't resolve promise because Connection closed");
+            expect(error.message).toMatch(/Connection closed because: .+/);
         })
         .timeout(500);
     }
