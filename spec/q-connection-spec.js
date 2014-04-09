@@ -51,6 +51,39 @@ describe("channel", function () {
     })
 });
 
+describe("onmessagelost", function () {
+    it("should be called when a message is lost", function () {
+        var done = Q.defer();
+
+        var channel = makeChannel();
+        var a = Connection(channel.l2r);
+        var b = Connection(channel.r2l, {
+            one: function () {},
+            two: function () {}
+        }, {
+            max: 2,
+            onmessagelost: function (message) {
+                expect(message).toBeDefined();
+                done.resolve();
+            }
+        });
+
+        return Q.all([
+            a.get("one"),
+            a.get("two")
+        ])
+        .spread(function (one, two) {
+            // Don't wait for the promises, because one of them will never
+            // get resolved
+            one();
+            two();
+
+            // All okay when onmessagelost is called. Otherwise we timeout
+            return done.promise;
+        });
+    });
+});
+
 describe("get", function () {
     it("should get the value of a remote property", function () {
         var peers = makePeers({

@@ -67,8 +67,13 @@ function Connection(connection, local, options) {
 
         if (!receivers[message.type])
             return; // ignore bad message types
-        if (!locals.has(message.to))
-            return; // ignore messages to non-existant or forgotten promises
+        if (!locals.has(message.to)) {
+            if (typeof options.onmessagelost === "function") {
+                options.onmessagelost(message);
+            }
+            // ignore messages to non-existant or forgotten promises
+            return;
+        }
         receivers[message.type](message);
     }
 
