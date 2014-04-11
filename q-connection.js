@@ -23,6 +23,7 @@ function Connection(connection, local, options) {
     var makeId = options.makeId || function () {
         return UUID.generate();
     };
+    var sanitizeError = typeof options.sanitizeError === "function" ? options.sanitizeError : false;
     var locals = LruMap(null, options.max || Infinity);
     connection = adapt(connection, options.origin);
 
@@ -248,6 +249,9 @@ function Connection(connection, local, options) {
             ) {
                 var result = {};
                 if (object instanceof Error) {
+                    if (sanitizeError) {
+                        object = sanitizeError(object);
+                    }
                     result.message = object.message;
                     result.stack = object.stack;
                 }

@@ -27,11 +27,11 @@ function makeChannel() {
     };
 }
 
-function makePeers(local, remote) {
+function makePeers(local, remote, options) {
     var channel = makeChannel();
     return {
-        local: Connection(channel.l2r, local),
-        remote: Connection(channel.r2l, remote),
+        local: Connection(channel.l2r, local, options),
+        remote: Connection(channel.r2l, remote, options),
         close: channel.close
     }
 }
@@ -413,3 +413,47 @@ describe("serialization", function () {
 
 });
 
+describe("options", function () {
+    describe("sanitizeError", function () {
+        var peers, options;
+        beforeEach(function () {
+            options = {
+                sanitizeError: function (error) {
+                    return {sanitized: true};
+                }
+            };
+            spyOn(options, "sanitizeError").andCallThrough();
+            peers = makePeers({
+                object: function () {
+                    return {object: true};
+                },
+                error: function () {
+                    return new Error("error");
+                }
+            }, null, options);
+        });
+
+        it("should be called with the error", function () {
+            return peers.remote.invoke("error")
+            .then(function (response) {
+                expect(options.sanitizeError).toHaveBeenCalled();
+                expect(options.sanitizeError.mostRecentCall.args[0].message).toEqual("error");
+            });
+        });
+
+        it("'s return value should be used instead of the error", function () {
+            return peers.remote.invoke("error")
+            .then(function (response) {
+                expect(response).toEqual({sanitized: true});
+            });
+        });
+
+        it("is not called for plain objects", function () {
+            return peers.remote.invoke("object")
+            .then(function (response) {
+                expect(response).toEqual({object: true});
+                expect(options.sanitizeError).not.toHaveBeenCalled();
+            });
+        });
+    });
+});
