@@ -1,4 +1,4 @@
-
+/*global describe,it,expect */
 require("./lib/jasmine-promise");
 var Q = require("q");
 var Queue = require("q/queue");
@@ -61,7 +61,7 @@ describe("onmessagelost", function () {
             one: function () {},
             two: function () {}
         }, {
-            max: 2,
+            max: 1,
             onmessagelost: function (message) {
                 expect(message).toBeDefined();
                 done.resolve();
@@ -79,7 +79,28 @@ describe("onmessagelost", function () {
             two();
 
             // All okay when onmessagelost is called. Otherwise we timeout
-            return done.promise;
+            return done.promise.timeout(50);
+        });
+    });
+});
+
+describe("root object", function () {
+    it("is never forgotten", function () {
+        var channel = makeChannel();
+        var a = Connection(channel.l2r);
+        var b = Connection(channel.r2l, {
+            one: function () {},
+            two: "pass"
+        }, {
+            max: 1
+        });
+
+        return a.get("one")
+        .then(function () {
+            return a.get("two").timeout(50);
+        })
+        .then(function (two) {
+            expect(two).toEqual("pass");
         });
     });
 });
@@ -390,7 +411,7 @@ describe("serialization", function () {
                 a[0] = a;
                 return a;
             }
-        })
+        });
         return peers.remote.invoke("respond")
         .then(function (response) {
             expect(response[0]).toBe(response);
@@ -404,7 +425,7 @@ describe("serialization", function () {
                 a.b = [a, a, a, 10, 20];
                 return {d: a};
             }
-        })
+        });
         return peers.remote.invoke("respond")
         .then(function (response) {
             expect(response.d.b[1]).toBe(response.d);

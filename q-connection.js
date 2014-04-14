@@ -1,4 +1,3 @@
-
 var Q = require("q");
 var LruMap = require("collections/lru-map");
 var Map = require("collections/map");
@@ -23,6 +22,8 @@ function Connection(connection, local, options) {
     var makeId = options.makeId || function () {
         return UUID.generate();
     };
+    var root = Q.defer();
+    root.resolve(local);
     var locals = LruMap(null, options.max || Infinity);
     connection = adapt(connection, options.origin);
 
@@ -67,7 +68,7 @@ function Connection(connection, local, options) {
 
         if (!receivers[message.type])
             return; // ignore bad message types
-        if (!locals.has(message.to)) {
+        if (!hasLocal(message.to)) {
             if (typeof options.onmessagelost === "function") {
                 options.onmessagelost(message);
             }
@@ -80,12 +81,12 @@ function Connection(connection, local, options) {
     // message receiver handlers by message type
     var receivers = {
         "resolve": function (message) {
-            if (locals.has(message.to)) {
+            if (hasLocal(message.to)) {
                 dispatchLocal(message.to, "resolve", decode(message.resolution));
             }
         },
         "notify": function (message) {
-            if (locals.has(message.to)) {
+            if (hasLocal(message.to)) {
                 dispatchLocal(message.to, "notify", decode(message.resolution));
             }
         },
@@ -95,7 +96,7 @@ function Connection(connection, local, options) {
 
             // forward the message to the local promise,
             // which will return a response promise
-            var local = locals.get(message.to).promise;
+            var local = getLocal(message.to).promise;
             var response = local.dispatch(message.op, decode(message.args));
             var envelope;
 
@@ -110,7 +111,7 @@ function Connection(connection, local, options) {
                 } catch (exception) {
                     try {
                         resolution = {"!": encode(exception)};
-                    } catch (exception) {
+                    } catch (_exception) {
                         resolution = {"!": null};
                     }
                 }
@@ -126,7 +127,7 @@ function Connection(connection, local, options) {
                 } catch (exception) {
                     try {
                         reason = encode(exception);
-                    } catch (exception) {
+                    } catch (_exception) {
                         reason = null;
                     }
                 }
@@ -134,7 +135,7 @@ function Connection(connection, local, options) {
                     "type": "resolve",
                     "to": message.from,
                     "resolution": {"!": reason}
-                })
+                });
                 connection.put(envelope);
             }, function (progress) {
                 try {
@@ -147,7 +148,7 @@ function Connection(connection, local, options) {
                 } catch (exception) {
                     try {
                         progress = {"!": encode(exception)};
-                    } catch (exception) {
+                    } catch (_exception) {
                         progress = {"!": null};
                     }
                     envelope = JSON.stringify({
@@ -161,13 +162,21 @@ function Connection(connection, local, options) {
             .done();
 
         }
+    };
+
+    function hasLocal(id) {
+        return id === rootId ? true : locals.has(id);
+    }
+
+    function getLocal(id) {
+        return id === rootId ? root : locals.get(id);
     }
 
     // construct a local promise, such that it can
     // be resolved later by a remote message
     function makeLocal(id) {
-        if (locals.has(id)) {
-            return locals.get(id).promise;
+        if (hasLocal(id)) {
+            return getLocal(id).promise;
         } else {
             var deferred = Q.defer();
             locals.set(id, deferred);
@@ -179,7 +188,7 @@ function Connection(connection, local, options) {
     // for a given identifier.
     function dispatchLocal(id, op, value) {
 //        _debug(op + ':', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
-        locals.get(id)[op](value);
+        getLocal(id)[op](value);
     }
 
     // makes a promise that will send all of its events to a
@@ -192,7 +201,7 @@ function Connection(connection, local, options) {
         }, function (op, args) {
             var localId = makeId();
             var response = makeLocal(localId);
-             _debug("sending:", "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
+            _debug("sending:", "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
             connection.put(JSON.stringify({
                 "type": "send",
                 "to": id,
@@ -224,14 +233,15 @@ function Connection(connection, local, options) {
             }
             return object;
         } else {
-            var encoded;
+            var id;
             if (memo.has(object)) {
                 return {"$": memo.get(object)};
             } else {
                 memo.set(object, path);
             }
+
             if (Q.isPromise(object) || typeof object === "function") {
-                var id = makeId();
+                id = makeId();
                 makeLocal(id);
                 dispatchLocal(id, "resolve", object);
                 return {"@": id, "type": typeof object};
@@ -261,7 +271,7 @@ function Connection(connection, local, options) {
                 }
                 return result;
             } else {
-                var id = makeId();
+                id = makeId();
                 makeLocal(id);
                 dispatchLocal(id, "resolve", object);
                 return {"@": id, "type": typeof object};
@@ -322,8 +332,6 @@ function Connection(connection, local, options) {
     // Connection is used as the local object.  The identifier of
     // the root object is an empty-string by convention.
     // All other identifiers are numbers.
-    makeLocal(rootId);
-    dispatchLocal(rootId, "resolve", local);
     return makeRemote(rootId);
 
 }
