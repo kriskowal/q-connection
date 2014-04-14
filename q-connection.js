@@ -54,9 +54,13 @@ function Connection(connection, local, options) {
 
     if (connection.closed) {
         connection.closed.then(function (error) {
-            error = new Error("Connection closed because: "+error.message);
+            if (typeof error !== "object") {
+                error = new Error(error);
+            }
+            var closedError = new Error("Connection closed because: " + error.message);
+            closedError.cause = error;
             locals.forEach(function (local) {
-                local.reject(error);
+                local.reject(closedError);
             });
         });
     }
