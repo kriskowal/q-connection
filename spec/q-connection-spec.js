@@ -1,4 +1,4 @@
-
+/*global describe,it,expect */
 require("./lib/jasmine-promise");
 var Q = require("q");
 var Queue = require("q/queue");
@@ -390,7 +390,7 @@ describe("serialization", function () {
                 a[0] = a;
                 return a;
             }
-        })
+        });
         return peers.remote.invoke("respond")
         .then(function (response) {
             expect(response[0]).toBe(response);
@@ -404,7 +404,7 @@ describe("serialization", function () {
                 a.b = [a, a, a, 10, 20];
                 return {d: a};
             }
-        })
+        });
         return peers.remote.invoke("respond")
         .then(function (response) {
             expect(response.d.b[1]).toBe(response.d);

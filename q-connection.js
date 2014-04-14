@@ -1,4 +1,3 @@
-
 var Q = require("q");
 var LruMap = require("collections/lru-map");
 var Map = require("collections/map");
@@ -110,7 +109,7 @@ function Connection(connection, local, options) {
                 } catch (exception) {
                     try {
                         resolution = {"!": encode(exception)};
-                    } catch (exception) {
+                    } catch (_exception) {
                         resolution = {"!": null};
                     }
                 }
@@ -126,7 +125,7 @@ function Connection(connection, local, options) {
                 } catch (exception) {
                     try {
                         reason = encode(exception);
-                    } catch (exception) {
+                    } catch (_exception) {
                         reason = null;
                     }
                 }
@@ -134,7 +133,7 @@ function Connection(connection, local, options) {
                     "type": "resolve",
                     "to": message.from,
                     "resolution": {"!": reason}
-                })
+                });
                 connection.put(envelope);
             }, function (progress) {
                 try {
@@ -147,7 +146,7 @@ function Connection(connection, local, options) {
                 } catch (exception) {
                     try {
                         progress = {"!": encode(exception)};
-                    } catch (exception) {
+                    } catch (_exception) {
                         progress = {"!": null};
                     }
                     envelope = JSON.stringify({
@@ -161,7 +160,7 @@ function Connection(connection, local, options) {
             .done();
 
         }
-    }
+    };
 
     // construct a local promise, such that it can
     // be resolved later by a remote message
@@ -192,7 +191,7 @@ function Connection(connection, local, options) {
         }, function (op, args) {
             var localId = makeId();
             var response = makeLocal(localId);
-             _debug("sending:", "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
+            _debug("sending:", "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
             connection.put(JSON.stringify({
                 "type": "send",
                 "to": id,
@@ -224,14 +223,15 @@ function Connection(connection, local, options) {
             }
             return object;
         } else {
-            var encoded;
+            var id;
             if (memo.has(object)) {
                 return {"$": memo.get(object)};
             } else {
                 memo.set(object, path);
             }
+
             if (Q.isPromise(object) || typeof object === "function") {
-                var id = makeId();
+                id = makeId();
                 makeLocal(id);
                 dispatchLocal(id, "resolve", object);
                 return {"@": id, "type": typeof object};
@@ -261,7 +261,7 @@ function Connection(connection, local, options) {
                 }
                 return result;
             } else {
-                var id = makeId();
+                id = makeId();
                 makeLocal(id);
                 dispatchLocal(id, "resolve", object);
                 return {"@": id, "type": typeof object};

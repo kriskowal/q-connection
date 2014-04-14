@@ -1,0 +1,14 @@
+{
+    "loopfunc": true,
+    "sub": true,
+    "unused": true,
+    "undef": true,
+    "trailing": true,
+    "indent": 4,
+
+    "globals": {
+        "require": false,
+        "module": false,
+        "Map": true
+    }
+}
