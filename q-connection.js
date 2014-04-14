@@ -24,7 +24,7 @@ function Connection(connection, local, options) {
     };
     var root = Q.defer();
     root.resolve(local);
-    var locals = LruMap(null, options.max || Infinity);
+    var locals = LruMap(null, options.capacity || options.max || Infinity);
     connection = adapt(connection, options.origin);
 
     var debugKey = Math.random().toString(16).slice(2, 4).toUpperCase() + ":";
