@@ -1,5 +1,18 @@
 <!-- vim:ts=4:sts=4:sw=4:et:tw=60 -->
 
+# 0.6.1
+
+-   The reason a connection was closed is now communicated to all pending
+    promises that are rejected because of a closed connection.  (@felixge)
+    These errors now have a `cause` property, for the original `Error`.
+-   Adds support for an `onmessagelost` option that will be invoked if a message
+    is sent to a non-existant promise. This can occur if the promise is
+    collected from the LRU. (@stuk)
+-   Ensures that the service root object for a connection is never evicted from
+    the LRU cache of local promises. (@stuk)
+-   The `capacity` option takes over for the former `max` option, setting the
+    capacity of the LRU for cached promises.
+
 # 0.6.0
 
 -   :warning: Only treat object literals, descending directly from Object
