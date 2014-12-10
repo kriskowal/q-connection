@@ -1,6 +1,6 @@
-
 var Q = require("q");
 var LruMap = require("collections/lru-map");
+var Map = require("collections/map");
 var UUID = require("./lib/uuid");
 var adapt = require("./adapt");
 
@@ -22,7 +22,9 @@ function Connection(connection, local, options) {
     var makeId = options.makeId || function () {
         return UUID.generate();
     };
-    var locals = LruMap(null, options.max || Infinity);
+    var root = Q.defer();
+    root.resolve(local);
+    var locals = LruMap(null, options.capacity || options.max || Infinity);
     connection = adapt(connection, options.origin);
 
     var debugKey = Math.random().toString(16).slice(2, 4).toUpperCase() + ":";
@@ -51,10 +53,14 @@ function Connection(connection, local, options) {
     }
 
     if (connection.closed) {
-        connection.closed.then(function () {
-            var error = new Error("Can't resolve promise because Connection closed");
+        connection.closed.then(function (error) {
+            if (typeof error !== "object") {
+                error = new Error(error);
+            }
+            var closedError = new Error("Connection closed because: " + error.message);
+            closedError.cause = error;
             locals.forEach(function (local) {
-                local.reject(error);
+                local.reject(closedError);
             });
         });
     }
@@ -66,21 +72,26 @@ function Connection(connection, local, options) {
 
         if (!receivers[message.type])
             return; // ignore bad message types
-        if (!locals.has(message.to))
-            return; // ignore messages to non-existant or forgotten promises
+        if (!hasLocal(message.to)) {
+            if (typeof options.onmessagelost === "function") {
+                options.onmessagelost(message);
+            }
+            // ignore messages to non-existant or forgotten promises
+            return;
+        }
         receivers[message.type](message);
     }
 
     // message receiver handlers by message type
     var receivers = {
         "resolve": function (message) {
-            if (locals.has(message.to)) {
-                dispatchLocal(message.to, 'resolve', decode(message.resolution));
+            if (hasLocal(message.to)) {
+                dispatchLocal(message.to, "resolve", decode(message.resolution));
             }
         },
         "notify": function (message) {
-            if (locals.has(message.to)) {
-                dispatchLocal(message.to, 'notify', decode(message.resolution));
+            if (hasLocal(message.to)) {
+                dispatchLocal(message.to, "notify", decode(message.resolution));
             }
         },
         // a "send" message forwards messages from a remote
@@ -89,7 +100,7 @@ function Connection(connection, local, options) {
 
             // forward the message to the local promise,
             // which will return a response promise
-            var local = locals.get(message.to).promise;
+            var local = getLocal(message.to).promise;
             var response = local.dispatch(message.op, decode(message.args));
             var envelope;
 
@@ -104,7 +115,7 @@ function Connection(connection, local, options) {
                 } catch (exception) {
                     try {
                         resolution = {"!": encode(exception)};
-                    } catch (exception) {
+                    } catch (_exception) {
                         resolution = {"!": null};
                     }
                 }
@@ -120,7 +131,7 @@ function Connection(connection, local, options) {
                 } catch (exception) {
                     try {
                         reason = encode(exception);
-                    } catch (exception) {
+                    } catch (_exception) {
                         reason = null;
                     }
                 }
@@ -128,7 +139,7 @@ function Connection(connection, local, options) {
                     "type": "resolve",
                     "to": message.from,
                     "resolution": {"!": reason}
-                })
+                });
                 connection.put(envelope);
             }, function (progress) {
                 try {
@@ -141,7 +152,7 @@ function Connection(connection, local, options) {
                 } catch (exception) {
                     try {
                         progress = {"!": encode(exception)};
-                    } catch (exception) {
+                    } catch (_exception) {
                         progress = {"!": null};
                     }
                     envelope = JSON.stringify({
@@ -155,13 +166,21 @@ function Connection(connection, local, options) {
             .done();
 
         }
+    };
+
+    function hasLocal(id) {
+        return id === rootId ? true : locals.has(id);
+    }
+
+    function getLocal(id) {
+        return id === rootId ? root : locals.get(id);
     }
 
     // construct a local promise, such that it can
     // be resolved later by a remote message
     function makeLocal(id) {
-        if (locals.has(id)) {
-            return locals.get(id).promise;
+        if (hasLocal(id)) {
+            return getLocal(id).promise;
         } else {
             var deferred = Q.defer();
             locals.set(id, deferred);
@@ -172,8 +191,8 @@ function Connection(connection, local, options) {
     // a utility for resolving the local promise
     // for a given identifier.
     function dispatchLocal(id, op, value) {
-        _debug(op + ':', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
-        locals.get(id)[op](value);
+//        _debug(op + ':', "L" + JSON.stringify(id), JSON.stringify(value), typeof value);
+        getLocal(id)[op](value);
     }
 
     // makes a promise that will send all of its events to a
@@ -186,7 +205,7 @@ function Connection(connection, local, options) {
         }, function (op, args) {
             var localId = makeId();
             var response = makeLocal(localId);
-             _debug('sending:', "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
+            _debug("sending:", "R" + JSON.stringify(id), JSON.stringify(op), JSON.stringify(encode(args)));
             connection.put(JSON.stringify({
                 "type": "send",
                 "to": id,
@@ -201,7 +220,9 @@ function Connection(connection, local, options) {
     // serializes an object tree, encoding promises such
     // that JSON.stringify on the result will produce
     // "QSON": serialized promise objects.
-    function encode(object) {
+    function encode(object, memo, path ) {
+        memo = memo || new Map();
+        path = path || "";
         if (object === undefined) {
             return {"%": "undefined"};
         } else if (Object(object) !== object) {
@@ -215,38 +236,62 @@ function Connection(connection, local, options) {
                 }
             }
             return object;
-        } else if (Q.isPromise(object) || typeof object === "function") {
-            var id = makeId();
-            makeLocal(id);
-            dispatchLocal(id, 'resolve', object);
-            return {"@": id, "type": typeof object};
-        } else if (Array.isArray(object)) {
-            return object.map(encode);
-        } else if (typeof object === "object") {
-            var result = {};
-            if (object instanceof Error) {
-                result.message = object.message;
-                result.stack = object.stack;
-            }
-            for (var key in object) {
-                if (has.call(object, key)) {
-                    var newKey = key.replace(/[@!%\\]/, function ($0) {
-                        return "\\" + $0;
-                    });
-                    result[newKey] = encode(object[key]);
-                }
-            }
-            return result;
         } else {
-            return object;
+            var id;
+            if (memo.has(object)) {
+                return {"$": memo.get(object)};
+            } else {
+                memo.set(object, path);
+            }
+
+            if (Q.isPromise(object) || typeof object === "function") {
+                id = makeId();
+                makeLocal(id);
+                dispatchLocal(id, "resolve", object);
+                return {"@": id, "type": typeof object};
+            } else if (Array.isArray(object)) {
+                return object.map(function (value, index) {
+                    return encode(value, memo, path + "/" + index);
+                });
+            } else if (
+                (
+                    object.constructor === Object &&
+                    Object.getPrototypeOf(object) === Object.prototype
+                ) ||
+                object instanceof Error
+            ) {
+                var result = {};
+                if (object instanceof Error) {
+                    result.message = object.message;
+                    result.stack = object.stack;
+                }
+                for (var key in object) {
+                    if (has.call(object, key)) {
+                        var newKey = key.replace(/[@!%\$\/\\]/, function ($0) {
+                            return "\\" + $0;
+                        });
+                        result[newKey] = encode(object[key], memo, path + "/" + newKey);
+                    }
+                }
+                return result;
+            } else {
+                id = makeId();
+                makeLocal(id);
+                dispatchLocal(id, "resolve", object);
+                return {"@": id, "type": typeof object};
+            }
         }
     }
 
     // decodes QSON
-    function decode(object) {
+    function decode(object, memo, path) {
+        memo = memo || new Map();
+        path = path || "";
         if (Object(object) !== object) {
             return object;
-        } else if (object['%']) {
+        } else if (object["$"] !== void 0) {
+            return memo.get(object["$"]);
+        } else if (object["%"]) {
             if (object["%"] === "undefined") {
                 return undefined;
             } else if (object["%"] === "+Infinity") {
@@ -258,9 +303,9 @@ function Connection(connection, local, options) {
             } else {
                 return Q.reject(new TypeError("Unrecognized type: " + object["%"]));
             }
-        } else if (object['!']) {
-            return Q.reject(object['!']);
-        } else if (object['@']) {
+        } else if (object["!"]) {
+            return Q.reject(object["!"]);
+        } else if (object["@"]) {
             var remote = makeRemote(object["@"]);
             if (object.type === "function") {
                 return function () {
@@ -269,16 +314,15 @@ function Connection(connection, local, options) {
             } else {
                 return remote;
             }
-        } else if (Array.isArray(object)) {
-            return object.map(decode);
         } else {
-            var newObject = {};
+            var newObject = Array.isArray(object) ? [] : {};
+            memo.set(path, newObject);
             for (var key in object) {
                 if (has.call(object, key)) {
-                    var newKey = key.replace(/\\([\\!@%])/, function ($0, $1) {
+                    var newKey = key.replace(/\\([\\!@%\$\/])/, function ($0, $1) {
                         return $1;
                     });
-                    newObject[newKey] = decode(object[key]);
+                    newObject[newKey] = decode(object[key], memo, path + "/" + key);
                 }
             }
             return newObject;
@@ -292,8 +336,6 @@ function Connection(connection, local, options) {
     // Connection is used as the local object.  The identifier of
     // the root object is an empty-string by convention.
     // All other identifiers are numbers.
-    makeLocal(rootId);
-    dispatchLocal(rootId, 'resolve', local);
     return makeRemote(rootId);
 
 }

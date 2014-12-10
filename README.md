@@ -218,7 +218,7 @@ connection.on("message", function (data) {
 var remote = Connection(port, local);
 ```
 
-Here's an example showing adapting `socket.io` to the message port. 
+Here's an example showing adapting `socket.io` to the message port.
 
 ```javascript
 var port = {
@@ -293,7 +293,17 @@ var remote = Connection(port, local, {max: 1024});
 
 The least frequently used promises will be collected.  If the remote
 attempts to communicate with a collected promise, the request will be
-rejected.  This is fine if you have code in place to recover from
-rejections that will revive the working set of promises.  The minimum
-working set will vary depending on the load on your service.
+ignored.  The minimum working set will vary depending on the load on your
+service.
 
+To be notified when communication is attempted with a collected promise
+set the `onmessagelost` option.
+
+```javascript
+var remote = Connection(port, local, {
+    max: 1024,
+    onmessagelost: function (message) {
+        console.log("Message to unknown promise", message);
+    }
+});
+```
