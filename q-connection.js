@@ -236,6 +236,10 @@ function Connection(connection, local, options) {
                 }
             }
             return object;
+        } else if (object instanceof RegExp) {
+            return {"%": {"type": "RegExp", "value": object.toString()}};
+        } else if (object instanceof Date) {
+            return {"%": {"type": "Date", "value": object.toISOString()}};
         } else {
             var id;
             if (memo.has(object)) {
@@ -300,6 +304,15 @@ function Connection(connection, local, options) {
                 return Number.NEGATIVE_INFINITY;
             } else if (object["%"] === "NaN") {
                 return Number.NaN;
+            } else if (typeof object["%"] === "object" && object["%"].type) {
+                if(object["%"].type === "RegExp" && object["%"].value){
+                    var match = object["%"].value.match(new RegExp('^/(.*?)/([gimy]*)$'));
+                    return new RegExp(match[1], match[2]);
+                } else if(object["%"].type === "Date" && object["%"].value){
+                    return new Date(object["%"].value);
+                } else {
+                    return Q.reject(new TypeError("Unrecognized type: " + object["%"].type));
+                }
             } else {
                 return Q.reject(new TypeError("Unrecognized type: " + object["%"]));
             }
