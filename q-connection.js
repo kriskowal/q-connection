@@ -199,7 +199,7 @@ function Connection(connection, local, options) {
     // makes a promise that will send all of its events to a
     // remote object.
     function makeRemote(id) {
-        var r = Q.makePromise({
+        var remotePromise = Q.makePromise({
             when: function () {
                 return this;
             }
@@ -217,7 +217,7 @@ function Connection(connection, local, options) {
             return response;
         });
         remotes.set(r,id);
-        return r;
+        return remotePromise;
     }
 
     // serializes an object tree, encoding promises such
@@ -250,12 +250,14 @@ function Connection(connection, local, options) {
             if (Q.isPromise(object) || typeof object === "function") {
                 if (remotes.has(object)) {
                     id = remotes.get(object);
-                    return {"@r": id, "type": typeof object);
+                    // "@l" because it is local to the recieving end
+                    return {"@l": id, "type": typeof object);
                 } else {
                   id = makeId();
                   makeLocal(id);
                   dispatchLocal(id, "resolve", object);
-                  return {"@l": id, "type": typeof object};
+                  // "@r" because it is remote to the recieving end
+                  return {"@r": id, "type": typeof object};
                 }
             } else if (Array.isArray(object)) {
                 return object.map(function (value, index) {
@@ -313,8 +315,8 @@ function Connection(connection, local, options) {
             }
         } else if (object["!"]) {
             return Q.reject(object["!"]);
-        } else if (object["@l"]) {
-            var remote = makeRemote(object["@l"]);
+        } else if (object["@r"]) {
+            var remote = makeRemote(object["@r"]);
             if (object.type === "function") {
                 return function () {
                     return Q.fapply(remote, Array.prototype.slice.call(arguments));
@@ -322,8 +324,8 @@ function Connection(connection, local, options) {
             } else {
                 return remote;
             }
-        } else if (object["@r"]) {
-          return locals.get(object["@r"]);
+        } else if (object["@l"]) {
+          return locals.get(object["@l"]);
         } else {
             var newObject = Array.isArray(object) ? [] : {};
             memo.set(path, newObject);
