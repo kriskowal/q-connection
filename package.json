@@ -1,12 +1,13 @@
 {
   "name": "q-connection",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "An inter-worker asynchronous promise communication system.",
   "homepage": "http://github.com/kriskowal/q-connection/",
   "author": "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
   "contributors": [
     "Kris Kowal <kris@cixar.com> (http://github.com/kriskowal/)",
-    "Irakli Gozalishvili <rfobic@gmail.com> (http://jeditoolkit.com/)"
+    "Irakli Gozalishvili <rfobic@gmail.com> (http://jeditoolkit.com/)",
+    "Zarutian <zarutian@gmail.com> (http://github.com/zarutian/)"
   ],
   "credits": [
     "Mark Miller <erights@google.com>"
@@ -69,7 +70,7 @@
     "url": "git://github.com/kriskowal/q-connection.git"
   },
   "engines": {
-    "node": ">=0.2.0",
+    "node": ">=0.8.0",
     "jetpack": ">=0.9.0"
   }
 }
