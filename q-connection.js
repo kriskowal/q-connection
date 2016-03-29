@@ -24,7 +24,8 @@ function Connection(connection, local, options) {
     };
     var root = Q.defer();
     root.resolve(local);
-    var locals = LruMap(null, options.capacity || options.max || Infinity);
+    var locals  = LruMap(null, options.capacity || options.max || Infinity); // arrow head is local
+    var remotes = LruMap(null, options.capacity || options.max || Infinity); // arrow head is remote
     connection = adapt(connection, options.origin);
 
     var debugKey = Math.random().toString(16).slice(2, 4).toUpperCase() + ":";
@@ -198,7 +199,7 @@ function Connection(connection, local, options) {
     // makes a promise that will send all of its events to a
     // remote object.
     function makeRemote(id) {
-        return Q.makePromise({
+        var remotePromise = Q.makePromise({
             when: function () {
                 return this;
             }
@@ -215,6 +216,8 @@ function Connection(connection, local, options) {
             }));
             return response;
         });
+        remotes.set(r,id);
+        return remotePromise;
     }
 
     // serializes an object tree, encoding promises such
@@ -245,10 +248,17 @@ function Connection(connection, local, options) {
             }
 
             if (Q.isPromise(object) || typeof object === "function") {
-                id = makeId();
-                makeLocal(id);
-                dispatchLocal(id, "resolve", object);
-                return {"@": id, "type": typeof object};
+                if (remotes.has(object)) {
+                    id = remotes.get(object);
+                    // "@l" because it is local to the recieving end
+                    return {"@l": id, "type": typeof object);
+                } else {
+                  id = makeId();
+                  makeLocal(id);
+                  dispatchLocal(id, "resolve", object);
+                  // "@r" because it is remote to the recieving end
+                  return {"@r": id, "type": typeof object};
+                }
             } else if (Array.isArray(object)) {
                 return object.map(function (value, index) {
                     return encode(value, memo, path + "/" + index);
@@ -278,7 +288,7 @@ function Connection(connection, local, options) {
                 id = makeId();
                 makeLocal(id);
                 dispatchLocal(id, "resolve", object);
-                return {"@": id, "type": typeof object};
+                return {"@l": id, "type": typeof object};
             }
         }
     }
@@ -305,8 +315,8 @@ function Connection(connection, local, options) {
             }
         } else if (object["!"]) {
             return Q.reject(object["!"]);
-        } else if (object["@"]) {
-            var remote = makeRemote(object["@"]);
+        } else if (object["@r"]) {
+            var remote = makeRemote(object["@r"]);
             if (object.type === "function") {
                 return function () {
                     return Q.fapply(remote, Array.prototype.slice.call(arguments));
@@ -314,6 +324,8 @@ function Connection(connection, local, options) {
             } else {
                 return remote;
             }
+        } else if (object["@l"]) {
+          return locals.get(object["@l"]);
         } else {
             var newObject = Array.isArray(object) ? [] : {};
             memo.set(path, newObject);
