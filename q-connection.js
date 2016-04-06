@@ -288,7 +288,8 @@ function Connection(connection, local, options) {
                 id = makeId();
                 makeLocal(id);
                 dispatchLocal(id, "resolve", object);
-                return {"@l": id, "type": typeof object};
+                // "@r" because it is remote to the recieving end
+                return {"@r": id, "type": typeof object};
             }
         }
     }
